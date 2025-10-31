@@ -1,10 +1,10 @@
-import Link from 'next/link';
-import { Menu } from 'lucide-react';
-import './globals.css';
+import Link from "next/link";
+import { Menu } from "lucide-react";
+import "./globals.css";
 
 export const metadata = {
-    title: 'impulS - Музыкальный плеер',
-    description: 'Ваш персональный музыкальный плеер',
+    title: "impulS - Музыкальный плеер",
+    description: "Ваш персональный музыкальный плеер",
 };
 
 export default function RootLayout({ children }) {
