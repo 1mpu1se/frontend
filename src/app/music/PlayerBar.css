@@ -1,0 +1,144 @@
+.player-bar {
+    position: fixed;
+    left: 0;
+    top: var(--player-top, var(--header-height, 64px));
+    width: 100%;
+    height: 64px;
+    z-index: 50;
+}
+
+.player-bg {
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(8px);
+    background-color: rgba(130, 109, 157, 0.6);
+}
+
+.player-inner {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.3rem;
+}
+
+.player-controls .transport {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.player-controls .extras {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.icon-btn {
+    padding: 0.1rem;
+    border-radius: 9999px;
+    transition: transform 0.2s ease;
+    background: none;
+    border: none;
+}
+.icon-btn:hover {
+    transform: scale(1.05);
+}
+
+.player-center {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.song-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.song-cover {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.song-title {
+    color: #fff;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+.song-artist {
+    color: #e9d5ff;
+    font-size: 0.75rem;
+}
+
+.progress-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.time-text {
+    color: #fff;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.track-slider {
+    flex: 1;
+    padding: 0;
+}
+.track-slider .MuiSlider-rail {
+    height: 5px;
+    border-radius: 99px;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+.track-slider .MuiSlider-track {
+    height: 5px;
+    border-radius: 99px;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.track-slider .MuiSlider-thumb {
+    display: none !important;
+}
+
+.volume-slider {
+    width: 100px !important;
+    color: #e8e19a !important;
+    padding: 0;
+}
+.volume-slider .MuiSlider-rail {
+    opacity: 0.3;
+    height: 4px;
+    border-radius: 99px;
+}
+.volume-slider .MuiSlider-track {
+    border: none;
+    height: 4px;
+    border-radius: 99px;
+}
+.volume-slider .MuiSlider-thumb {
+    display: none !important;
+}
+
+.player-volume {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
