@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Menu } from "lucide-react";
 import "./globals.css";
 
@@ -46,14 +47,45 @@ export default function RootLayout({ children }) {
             </svg>
 
             {/* Header */}
-            <header className="relative z-10 px-6 py-4 flex items-center justify-between">
-                <Link href="/">
-                    <h1 className="text-yellow-100 text-2xl font-bold italic cursor-pointer hover:text-yellow-50 transition">impulS</h1>
+            <header className="relative z-10 px-6 py-2 flex items-center justify-between bg-[#826d9d]/80 backdrop-blur-sm text-white">
+                <Link href="/" className="flex items-center gap-2">
+                    <Image
+                        src="/logo-mobile.svg"
+                        alt="impulS mobile logo"
+                        width={100}
+                        height={100}
+                        className="block sm:hidden h-8 w-auto hover:opacity-90 transition"
+                        priority
+                    />
+
+                    <Image
+                        src="/logo.svg"
+                        alt="impulS logo"
+                        width={150}
+                        height={150}
+                        className="hidden sm:block h-9 w-auto hover:opacity-90 transition"
+                        priority
+                    />
                 </Link>
-                <nav className="flex gap-8 text-white">
-                    <Link href="/music" className="hover:text-yellow-100 transition">музыка</Link>
-                    <Link href="/playlists" className="hover:text-yellow-100 transition">плейлисты</Link>
-                    <Link href="/upload" className="hover:text-yellow-100 transition">загрузка</Link>
+                <nav className="flex gap-4 text-white">
+                    <Link
+                        href="/music"
+                        className="px-6 py-2 rounded-full hover:bg-white/10 transition-all relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:h-0.5 after:bg-white after:transition-all hover:after:w-3/5"
+                    >
+                        музыка
+                    </Link>
+                    <Link
+                        href="/playlists"
+                        className="px-6 py-2 rounded-full hover:bg-white/10 transition-all relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:h-0.5 after:bg-white after:transition-all hover:after:w-3/5"
+                    >
+                        плейлисты
+                    </Link>
+                    <Link
+                        href="/upload"
+                        className="px-6 py-2 rounded-full hover:bg-white/10 transition-all relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:h-0.5 after:bg-white after:transition-all hover:after:w-3/5"
+                    >
+                        загрузка
+                    </Link>
                 </nav>
                 <button className="text-white hover:text-yellow-100 transition">
                     <Menu size={24} />
