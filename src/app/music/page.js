@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {Search, MoreHorizontal} from "lucide-react";
+import { Search, MoreHorizontal } from "lucide-react";
 import Equalizer from "./Equalizer";
 
 export default function MusicPage() {
@@ -49,7 +49,7 @@ export default function MusicPage() {
 
             {/* Song List */}
             <div className="max-w-6xl mx-auto">
-                <div className="rounded-3xl p-6 shadow-lg" style={{ backgroundColor: "#826d9d" }}>
+                <div className="rounded-3xl p-6 shadow-lg bg-[#826d9d]/80 backdrop-blur-md">
                     <div className="space-y-1 mx-5">
                         {filteredSongs.map((song) => {
                             const isPlaying = playingSongId === song.id;
@@ -59,7 +59,7 @@ export default function MusicPage() {
                                     className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition cursor-pointer group"
                                 >
                                     <button
-                                        className="text-white hover:scale-110 transition"
+                                        className="text-white hover:scale-110 transition cursor-pointer"
                                         onClick={() => handlePlayToggle(song.id)}
                                         aria-label={isPlaying ? "Stop" : "Play"}
                                     >
