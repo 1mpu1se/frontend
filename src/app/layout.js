@@ -1,17 +1,36 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { Menu } from "lucide-react";
-import "./globals.css";
+import { useEffect } from "react";
+import { MusicProvider, useMusic } from "@/app/MusicContext";
+import PlayerBar from "@/app/components/PlayerBar";
+import "@/app/globals.css";
 
-export const metadata = {
-    title: "impulS - Музыкальный плеер",
-    description: "Ваш персональный музыкальный плеер",
-};
+function LayoutContent({ children }) {
+    const { playingSongId, currentSong, isPlaying, handlePlayToggle, handlePrev, handleNext } = useMusic();
+    const playerVisible = playingSongId !== null;
 
-export default function RootLayout({ children }) {
+    useEffect(() => {
+        const setPlayerVars = () => {
+            const header = document.querySelector("header");
+            if (!header) return;
+            const rect = header.getBoundingClientRect();
+            document.documentElement.style.setProperty("--player-top", `${Math.floor(rect.bottom)}px`);
+            document.documentElement.style.setProperty("--header-height", `${Math.ceil(rect.height)}px`);
+            document.documentElement.style.setProperty("--player-height", playerVisible ? "64px" : "0px");
+        };
+        setPlayerVars();
+        window.addEventListener("resize", setPlayerVars);
+        const obs = new MutationObserver(setPlayerVars);
+        obs.observe(document.body, { childList: true, subtree: true });
+        return () => {
+            window.removeEventListener("resize", setPlayerVars);
+            obs.disconnect();
+        };
+    }, [playerVisible]);
+
     return (
-        <html lang="ru">
-        <body>
         <div className="min-h-screen relative overflow-hidden bg-purple-300">
             {/* SVG Background Blobs */}
             <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none" viewBox="0 0 1780 900" preserveAspectRatio="xMidYMid slice">
@@ -47,8 +66,8 @@ export default function RootLayout({ children }) {
             </svg>
 
             {/* Header */}
-            <header className="relative z-10 px-6 py-2 flex items-center justify-between bg-[#826d9d]/80 backdrop-blur-sm text-white">
-                <Link href="/" className="flex items-center gap-2">
+            <header className="relative z-10 px-6 py-2 flex items-center justify-center bg-[#826d9d]/80 backdrop-blur-sm text-white">
+                <Link href="/" className="flex items-center gap-2 mr-180">
                     <Image
                         src="/logo-mobile.svg"
                         alt="impulS mobile logo"
@@ -87,17 +106,38 @@ export default function RootLayout({ children }) {
                         загрузка
                     </Link>
                 </nav>
-                <button className="text-white hover:text-yellow-100 transition">
+                <button className="text-white hover:text-yellow-100 transition ml-180">
                     <Menu size={24} />
                 </button>
             </header>
 
             {/* Main Content */}
-            <main className="relative z-10 px-6 py-8">
+            <main className="relative z-10 px-6 py-8" style={{ paddingTop: `calc(var(--player-top, var(--header-height, 64px)) - var(--header-height, 64px) + var(--player-height, 0px))` }}>
                 {children}
             </main>
+
+            {/* Global Player */}
+            {playerVisible && (
+                <PlayerBar
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    onPlayToggle={handlePlayToggle}
+                    onPrev={handlePrev}
+                    onNext={handleNext}
+                />
+            )}
         </div>
-        </body>
+    );
+}
+
+export default function RootLayout({ children }) {
+    return (
+        <html lang="ru">
+            <body>
+                <MusicProvider>
+                    <LayoutContent>{children}</LayoutContent>
+                </MusicProvider>
+            </body>
         </html>
     );
 }

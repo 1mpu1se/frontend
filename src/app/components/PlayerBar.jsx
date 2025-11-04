@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
-import "./PlayerBar.css";
+import "@/app/components/PlayerBar.css";
 
 export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev, onNext }) {
     const [progress, setProgress] = useState(0);
@@ -60,14 +60,14 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
     };
 
     const repeatIcons = {
-        off: '/repeat-off.svg',
-        playlist: '/repeat-on.svg',
-        track: '/repeat-one.svg',
+        off: 'music/repeat-off.svg',
+        playlist: 'music/repeat-on.svg',
+        track: 'music/repeat-one.svg',
     };
 
     const shuffleIcons = {
-        off: '/shuffle-off.svg',
-        on: '/shuffle-on.svg',
+        off: 'music/shuffle-off.svg',
+        on: 'music/shuffle-on.svg',
     };
 
     return (
@@ -78,7 +78,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                     <div className="player-controls">
                         <div className="transport">
                             <button onClick={onPrev} aria-label="Previous" className="icon-btn">
-                                <img src="/skip-back.svg" alt="Previous" width={22} height={22} />
+                                <img src="/music/skip-back.svg" alt="Previous" width={22} height={22} />
                             </button>
 
                             <button
@@ -87,7 +87,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                                 className="icon-btn play-btn"
                             >
                                 <img
-                                    src={isPlaying ? "/pause.svg" : "/play.svg"}
+                                    src={isPlaying ? "music/pause.svg" : "music/play.svg"}
                                     alt={isPlaying ? "Pause" : "Play"}
                                     width={32}
                                     height={32}
@@ -95,7 +95,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                             </button>
 
                             <button onClick={onNext} aria-label="Next" className="icon-btn">
-                                <img src="/skip-forward.svg" alt="Next" width={22} height={22} />
+                                <img src="/music/skip-forward.svg" alt="Next" width={22} height={22} />
                             </button>
                         </div>
 
@@ -165,7 +165,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                     </div>
 
                     <div className="player-volume">
-                        <img src="/volume.svg" alt="Volume" width={18} height={18} />
+                        <img src="/music/volume.svg" alt="Volume" width={18} height={18} />
                         <Slider
                             value={volume}
                             onChange={(_, val) => setVolume(Number(val))}
