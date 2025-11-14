@@ -7,6 +7,9 @@ import "@/app/components/PlayerBar.css";
 export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev, onNext }) {
     const [progress, setProgress] = useState(0);
     const [volume, setVolume] = useState(80);
+    const prevVolumeRef = useRef(null); // запомнит громкость до выключения
+    const [isMuted, setIsMuted] = useState(false);
+
     const accMsRef = useRef(0);
     const [isSeeking, setIsSeeking] = useState(false);
     const { seekTo } = useMusic();
@@ -70,6 +73,20 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
     const shuffleIcons = {
         off: 'music/shuffle-off.svg',
         on: 'music/shuffle-on.svg',
+    };
+
+    // Переключатель звука (mute / unmute)
+    const toggleMute = () => {
+        if (!isMuted && volume > 0) {
+            prevVolumeRef.current = volume;
+            setVolume(0);
+            setIsMuted(true);
+        } else {
+            const restore = prevVolumeRef.current ?? 80;
+            setVolume(restore);
+            setIsMuted(false);
+            prevVolumeRef.current = null;
+        }
     };
 
     return (
@@ -169,10 +186,32 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                     </div>
 
                     <div className="player-volume">
-                        <img src="/music/volume.svg" alt="Volume" width={18} height={18} />
+                        <button
+                            onClick={toggleMute}
+                            aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+                            className="icon-btn"
+                            style={{ marginRight: 8 }}
+                        >
+                            <img
+                                src={ (isMuted || volume === 0) ? "/music/volume-mute.svg" : "/music/volume.svg" }
+                                alt={ (isMuted || volume === 0) ? "Muted" : "Volume" }
+                                width={18}
+                                height={18}
+                            />
+                        </button>
+
                         <Slider
                             value={volume}
-                            onChange={(_, val) => setVolume(Number(val))}
+                            onChange={(_, val) => {
+                                const v = Number(val);
+                                setVolume(v);
+                                if (v === 0) {
+                                    setIsMuted(true);
+                                } else {
+                                    setIsMuted(false);
+                                    prevVolumeRef.current = null;
+                                }
+                            }}
                             min={0}
                             max={100}
                             aria-label="Volume"

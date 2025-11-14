@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 
 const MusicContext = createContext();
 
@@ -22,17 +22,44 @@ export function MusicProvider({ children }) {
     const accMsRef = useRef(0);
     const [seekTrigger, setSeekTrigger] = useState(0);
 
+    const endedRef = useRef(false);
     const currentSong = songs.find(s => s.id === playingSongId);
 
-    // Обновление времени трека
+    const playSongByIndex = useCallback((index) => {
+        if (!songs || songs.length === 0) return;
+        const normalized = ((index % songs.length) + songs.length) % songs.length;
+        const song = songs[normalized];
+        if (!song) return;
+
+        setPlayingSongId(song.id);
+        setIsPlaying(true);
+        setCurrentTime(0);
+        accMsRef.current = 0;
+        endedRef.current = false;
+    }, [songs]);
+
+    const navigate = useCallback((offset) => {
+        if (!songs || songs.length === 0) return;
+
+        const currentIdx = songs.findIndex(s => s.id === playingSongId);
+        const base = currentIdx === -1 ? (offset > 0 ? 0 : songs.length - 1) : currentIdx;
+        const nextIdx = base + offset;
+        playSongByIndex(nextIdx);
+    }, [songs, playingSongId, playSongByIndex]);
+
+    const handlePrev = useCallback(() => navigate(-1), [navigate]);
+    const handleNext = useCallback(() => navigate(1), [navigate]);
+
+    // Обновление времени трека и автоматический переход на следующий
     useEffect(() => {
+        endedRef.current = false;
         if (!playingSongId) return;
 
         const song = songs.find(s => s.id === playingSongId);
         if (!song) return;
 
-        const [min, sec] = song.duration.split(":").map(Number);
-        const totalSeconds = min * 60 + sec;
+        const [min = 0, sec = 0] = song.duration.split(":").map(Number);
+        const totalSeconds = (min || 0) * 60 + (sec || 0);
 
         if (!isPlaying) {
             setCurrentTime(Math.floor(accMsRef.current / 1000));
@@ -49,6 +76,13 @@ export function MusicProvider({ children }) {
                 setCurrentTime(totalSeconds);
                 accMsRef.current = totalSeconds * 1000;
                 clearInterval(interval);
+
+                if (!endedRef.current) {
+                    endedRef.current = true;
+                    setTimeout(() => {
+                        handleNext();
+                    }, 50);
+                }
             } else {
                 setCurrentTime(seconds);
                 accMsRef.current = elapsed;
@@ -56,49 +90,19 @@ export function MusicProvider({ children }) {
         }, 100);
 
         return () => clearInterval(interval);
-    }, [playingSongId, isPlaying, songs, seekTrigger]);
+    }, [playingSongId, isPlaying, songs, seekTrigger, handleNext]);
 
     const selectOrToggle = (id) => {
         if (playingSongId === id) {
             setIsPlaying(p => !p);
         } else {
-            setPlayingSongId(id);
-            setIsPlaying(true);
-            setCurrentTime(0);
-            accMsRef.current = 0;
+            const idx = songs.findIndex(s => s.id === id);
+            playSongByIndex(idx === -1 ? 0 : idx);
         }
     };
 
     const handlePlayToggle = () => {
         setIsPlaying(p => !p);
-    };
-
-    const handlePrev = () => {
-        if (!playingSongId) {
-            setPlayingSongId(songs[0].id);
-            setIsPlaying(true);
-            return;
-        }
-        const idx = songs.findIndex((s) => s.id === playingSongId);
-        const prev = idx <= 0 ? songs[songs.length - 1].id : songs[idx - 1].id;
-        setPlayingSongId(prev);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        accMsRef.current = 0;
-    };
-
-    const handleNext = () => {
-        if (!playingSongId) {
-            setPlayingSongId(songs[0].id);
-            setIsPlaying(true);
-            return;
-        }
-        const idx = songs.findIndex((s) => s.id === playingSongId);
-        const next = idx >= songs.length - 1 ? songs[0].id : songs[idx + 1].id;
-        setPlayingSongId(next);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        accMsRef.current = 0;
     };
 
     // Функция для обновления времени при перематывании
