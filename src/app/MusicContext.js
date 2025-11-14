@@ -14,6 +14,11 @@ export function MusicProvider({ children }) {
         { id: 7, title: "ГИМН КАЧКОВ", artist: "maxxytren, bulk_machine", duration: "2:21", cover: "https://picsum.photos/48?random=7" },
         { id: 8, title: "Душа, кайфуй", artist: "Vuska Zippo", duration: "2:56", cover: "https://picsum.photos/48?random=8" },
         { id: 9, title: "Radio", artist: "Rammstein", duration: "4:37", cover: "https://picsum.photos/48?random=9" },
+        { id: 10, title: "Отпусти меня", artist: "SEREBRO", duration: "3:53", cover: "https://picsum.photos/48?random=10" },
+        { id: 11, title: "Stress", artist: "NEWLIGHTCHILD feat. DONOR", duration: "1:53", cover: "https://picsum.photos/48?random=11" },
+        { id: 12, title: "TRAPCITYLIFE", artist: "Миллион О'Войд", duration: "2:03", cover: "https://picsum.photos/48?random=12" },
+        { id: 13, title: "liga la sosa", artist: "Платина", duration: "1:59", cover: "https://picsum.photos/48?random=13" },
+        { id: 14, title: "Бэйбитрон", artist: "OG BUDA", duration: "2:41", cover: "https://picsum.photos/48?random=14" },
     ]);
 
     const [playingSongId, setPlayingSongId] = useState(null);

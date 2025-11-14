@@ -12,6 +12,7 @@ function LayoutContent({ children }) {
     const playerVisible = playingSongId !== null;
 
     useEffect(() => {
+        let rafId = null;
         const setPlayerVars = () => {
             const header = document.querySelector("header");
             if (!header) return;
@@ -20,18 +21,26 @@ function LayoutContent({ children }) {
             document.documentElement.style.setProperty("--header-height", `${Math.ceil(rect.height)}px`);
             document.documentElement.style.setProperty("--player-height", playerVisible ? "64px" : "0px");
         };
+
+        const onScroll = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(setPlayerVars);
+        };
         setPlayerVars();
         window.addEventListener("resize", setPlayerVars);
+        window.addEventListener("scroll", onScroll, { passive: true });
         const obs = new MutationObserver(setPlayerVars);
         obs.observe(document.body, { childList: true, subtree: true });
         return () => {
             window.removeEventListener("resize", setPlayerVars);
+            window.removeEventListener("scroll", onScroll);
             obs.disconnect();
+            if (rafId) cancelAnimationFrame(rafId);
         };
     }, [playerVisible]);
 
     return (
-        <div className="min-h-screen relative overflow-hidden bg-purple-300">
+        <div className="min-h-screen relative overflow-visible bg-purple-300">
             {/* SVG Background Blobs */}
             <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none" viewBox="0 0 1780 900" preserveAspectRatio="xMidYMid slice">
                 <defs>
