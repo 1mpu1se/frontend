@@ -1,13 +1,19 @@
 "use client";
-import React, { useState } from "react";
-import { Search, MoreHorizontal } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search } from "lucide-react";
 import Equalizer from "@/app/components/Equalizer";
+import TrackMenu from "@/app/components/TrackMenu";
 import { useMusic } from "@/app/MusicContext";
 import { parseDuration, formatTime } from '@/app/utils/time';
 
 export default function MusicPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const { songs, playingSongId, isPlaying, currentTime, selectOrToggle } = useMusic();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const filteredSongs = songs.filter(
         (song) =>
@@ -86,9 +92,28 @@ export default function MusicPage() {
                                             <span className="text-white text-sm group-hover:opacity-0 transition-opacity">
                                                 {isActive ? formatTime(currentTime) : formatTime(parseDuration(song.duration))}
                                             </span>
-                                            <button className="absolute right-0 top-1/2 transform -translate-y-1/2 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer">
-                                                <MoreHorizontal size={20} />
-                                            </button>
+                                            <div
+                                                key={mounted ? "client" : "server"}
+                                                suppressHydrationWarning={true}
+                                                className="absolute right-0 top-1/2 transform -translate-y-1/2
+                                                opacity-0 group-hover:opacity-100 transition-opacity duration-150
+                                                pointer-events-none group-hover:pointer-events-auto"
+                                            >
+                                                {mounted && (
+                                                    <TrackMenu
+                                                        song={song}
+                                                        onAddToPlaylist={(s) => {
+                                                            console.log("Add to playlist", s);
+                                                        }}
+                                                        onDelete={(s) => {
+                                                            console.log("Delete", s);
+                                                        }}
+                                                        onAbout={(s) => {
+                                                            alert(`${s.title} — ${s.artist}\nДлительность: ${s.duration}`);
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
