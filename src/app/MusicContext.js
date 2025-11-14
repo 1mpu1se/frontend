@@ -20,30 +20,43 @@ export function MusicProvider({ children }) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const accMsRef = useRef(0);
+    const [seekTrigger, setSeekTrigger] = useState(0);
 
     const currentSong = songs.find(s => s.id === playingSongId);
 
     // Обновление времени трека
     useEffect(() => {
-        if (!playingSongId || !isPlaying) return;
+        if (!playingSongId) return;
+
         const song = songs.find(s => s.id === playingSongId);
         if (!song) return;
 
         const [min, sec] = song.duration.split(":").map(Number);
         const totalSeconds = min * 60 + sec;
 
+        if (!isPlaying) {
+            setCurrentTime(Math.floor(accMsRef.current / 1000));
+            return;
+        }
+
+        const startTime = Date.now() - accMsRef.current;
+
         const interval = setInterval(() => {
-            setCurrentTime(prev => {
-                if (prev >= totalSeconds) {
-                    clearInterval(interval);
-                    return totalSeconds;
-                }
-                return prev + 1;
-            });
-        }, 1000);
+            const elapsed = Date.now() - startTime;
+            const seconds = Math.floor(elapsed / 1000);
+
+            if (seconds >= totalSeconds) {
+                setCurrentTime(totalSeconds);
+                accMsRef.current = totalSeconds * 1000;
+                clearInterval(interval);
+            } else {
+                setCurrentTime(seconds);
+                accMsRef.current = elapsed;
+            }
+        }, 100);
 
         return () => clearInterval(interval);
-    }, [playingSongId, isPlaying, songs]);
+    }, [playingSongId, isPlaying, songs, seekTrigger]);
 
     const selectOrToggle = (id) => {
         if (playingSongId === id) {
@@ -88,6 +101,13 @@ export function MusicProvider({ children }) {
         accMsRef.current = 0;
     };
 
+    // Функция для обновления времени при перематывании
+    const seekTo = (milliseconds) => {
+        accMsRef.current = milliseconds;
+        setCurrentTime(Math.floor(milliseconds / 1000));
+        setSeekTrigger(prev => prev + 1);
+    };
+
     const value = {
         songs,
         playingSongId,
@@ -100,6 +120,7 @@ export function MusicProvider({ children }) {
         handlePrev,
         handleNext,
         setCurrentTime,
+        seekTo,
     };
 
     return (

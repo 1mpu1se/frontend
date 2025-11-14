@@ -43,9 +43,12 @@ export default function MusicPage() {
                             return (
                                 <div
                                     key={song.id}
-                                    className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition cursor-pointer group ${isActive ? "bg-white/10" : ""}`}
+                                    className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition group ${isActive ? "bg-white/20" : ""}`}
                                 >
-                                    <div className="relative w-12 h-12">
+                                    <div
+                                        className="relative w-12 h-12 cursor-pointer"
+                                        onClick={() => selectOrToggle(song.id)}
+                                    >
                                         <img
                                             src={song.cover}
                                             alt={`${song.title} cover`}
@@ -53,21 +56,17 @@ export default function MusicPage() {
                                         />
                                         <div className={`absolute inset-0 rounded-md transition-opacity 
                                               ${isActive ? "bg-black/50" : ""} 
-                                              ${!isActive ? "group-hover:bg-black/50 opacity-0 group-hover:opacity-100" : ""}`}>
+                                              ${!isActive ? "group-hover:bg-black/30 opacity-0 group-hover:opacity-100" : ""}`}>
                                         </div>
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <button
-                                                onClick={() => selectOrToggle(song.id)}
-                                                aria-label={isSongPlaying ? "Pause" : "Play"}
-                                                className="pointer-events-auto text-white transition transform hover:scale-110 opacity-0 group-hover:opacity-100"
-                                            >
+                                            <div className="pointer-events-auto text-white transition transform hover:scale-110 opacity-0 group-hover:opacity-100">
                                                 <img
                                                     src={isSongPlaying ? "music/pause.svg" : "music/play.svg"}
                                                     alt={isSongPlaying ? "Pause" : "Play"}
                                                     width={26}
                                                     height={26}
                                                 />
-                                            </button>
+                                            </div>
                                         </div>
                                         {isSongPlaying && (
                                             <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
@@ -75,22 +74,21 @@ export default function MusicPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-1">
+                                    <div
+                                        className="flex-1 cursor-pointer"
+                                        onClick={() => selectOrToggle(song.id)}
+                                    >
                                         <h3 className="text-white font-medium">{song.title}</h3>
                                         <p className="text-purple-200 text-sm">{song.artist}</p>
                                     </div>
                                     <div className="flex items-center gap-3 relative">
                                         <div className="relative w-12 flex justify-end">
-                                            {isActive ? (
-                                                <span className="text-white text-sm">{formatTime(currentTime)}</span>
-                                            ) : (
-                                                <>
-                                                    <span className="text-white text-sm">{formatTime(parseDuration(song.duration))}</span>
-                                                    <button className="absolute right-0 top-1/2 transform -translate-y-1/2 text-white opacity-0 group-hover:opacity-100 transition">
-                                                        <MoreHorizontal size={20} />
-                                                    </button>
-                                                </>
-                                            )}
+                                            <span className="text-white text-sm group-hover:opacity-0 transition-opacity">
+                                                {isActive ? formatTime(currentTime) : formatTime(parseDuration(song.duration))}
+                                            </span>
+                                            <button className="absolute right-0 top-1/2 transform -translate-y-1/2 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                                                <MoreHorizontal size={20} />
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

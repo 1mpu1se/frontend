@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
+import { useMusic } from "@/app/MusicContext";
 import "@/app/components/PlayerBar.css";
 
 export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev, onNext }) {
@@ -8,6 +9,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
     const [volume, setVolume] = useState(80);
     const accMsRef = useRef(0);
     const [isSeeking, setIsSeeking] = useState(false);
+    const { seekTo } = useMusic();
 
     const [repeatState, setRepeatState] = useState(0);
     const [shuffleActive, setShuffleActive] = useState(false);
@@ -147,7 +149,9 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                                 onChangeCommitted={(_, val) => {
                                     if (!currentSong) return setIsSeeking(false);
                                     const totalMs = parseDuration(currentSong.duration) * 1000;
-                                    accMsRef.current = (val / 100) * totalMs;
+                                    const newMs = (val / 100) * totalMs;
+                                    accMsRef.current = newMs;
+                                    seekTo(newMs);
                                     setIsSeeking(false);
                                 }}
                                 min={0}
