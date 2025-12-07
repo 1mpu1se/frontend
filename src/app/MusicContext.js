@@ -1,25 +1,13 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import { musicApi } from "@/app/api";
 
 const MusicContext = createContext();
 
 export function MusicProvider({ children }) {
-    const [songs] = useState([
-        { id: 1, title: "Я твой номер один", artist: "Дима Билан", duration: "3:09", cover: "https://picsum.photos/48?random=1" },
-        { id: 2, title: "Moscow In Da Club", artist: "Тимати", duration: "2:05", cover: "https://picsum.photos/48?random=2" },
-        { id: 3, title: "Небеса", artist: "Владимир Меладзе", duration: "3:56", cover: "https://picsum.photos/48?random=3" },
-        { id: 4, title: "П.М.М.Л", artist: "Земфира", duration: "3:37", cover: "https://picsum.photos/48?random=4" },
-        { id: 5, title: "sweater weather", artist: "NovaKing", duration: "3:31", cover: "https://picsum.photos/48?random=5" },
-        { id: 6, title: "Меня не будет", artist: "ANIKV, SALUKI", duration: "4:15", cover: "https://picsum.photos/48?random=6" },
-        { id: 7, title: "ГИМН КАЧКОВ", artist: "maxxytren, bulk_machine", duration: "2:21", cover: "https://picsum.photos/48?random=7" },
-        { id: 8, title: "Душа, кайфуй", artist: "Vuska Zippo", duration: "2:56", cover: "https://picsum.photos/48?random=8" },
-        { id: 9, title: "Radio", artist: "Rammstein", duration: "4:37", cover: "https://picsum.photos/48?random=9" },
-        { id: 10, title: "Отпусти меня", artist: "SEREBRO", duration: "3:53", cover: "https://picsum.photos/48?random=10" },
-        { id: 11, title: "Stress", artist: "NEWLIGHTCHILD feat. DONOR", duration: "1:53", cover: "https://picsum.photos/48?random=11" },
-        { id: 12, title: "TRAPCITYLIFE", artist: "Миллион О'Войд", duration: "2:03", cover: "https://picsum.photos/48?random=12" },
-        { id: 13, title: "liga la sosa", artist: "Платина", duration: "1:59", cover: "https://picsum.photos/48?random=13" },
-        { id: 14, title: "Бэйбитрон", artist: "OG BUDA", duration: "2:41", cover: "https://picsum.photos/48?random=14" },
-    ]);
+    const [songs, setSongs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const [playingSongId, setPlayingSongId] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -29,6 +17,24 @@ export function MusicProvider({ children }) {
 
     const endedRef = useRef(false);
     const currentSong = songs.find(s => s.id === playingSongId);
+
+    useEffect(() => {
+        loadTracks();
+    }, []);
+
+    const loadTracks = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await musicApi.getTracks();
+            setSongs(response.data || []);
+        } catch (err) {
+            console.error('Failed to load tracks:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const playSongByIndex = useCallback((index) => {
         if (!songs || songs.length === 0) return;
@@ -110,15 +116,46 @@ export function MusicProvider({ children }) {
         setIsPlaying(p => !p);
     };
 
-    // Функция для обновления времени при перематывании
     const seekTo = (milliseconds) => {
         accMsRef.current = milliseconds;
         setCurrentTime(Math.floor(milliseconds / 1000));
         setSeekTrigger(prev => prev + 1);
     };
 
+    // Методы для работы с треками через API
+    const deleteTrack = async (id) => {
+        try {
+            await musicApi.deleteTrack(id);
+            setSongs(prev => prev.filter(s => s.id !== id));
+
+            if (playingSongId === id) {
+                setPlayingSongId(null);
+                setIsPlaying(false);
+                setCurrentTime(0);
+            }
+        } catch (err) {
+            console.error('Failed to delete track:', err);
+            throw err;
+        }
+    };
+
+    const searchTracks = async (query) => {
+        try {
+            setLoading(true);
+            const response = await musicApi.searchTracks(query);
+            return response.data || [];
+        } catch (err) {
+            console.error('Failed to search tracks:', err);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const value = {
         songs,
+        loading,
+        error,
         playingSongId,
         isPlaying,
         currentTime,
@@ -130,6 +167,9 @@ export function MusicProvider({ children }) {
         handleNext,
         setCurrentTime,
         seekTo,
+        loadTracks,
+        deleteTrack,
+        searchTracks,
     };
 
     return (
