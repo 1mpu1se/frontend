@@ -58,7 +58,7 @@ export const MusicProvider = ({ children }) => {
         }
     }, []);
 
-    // Управление воспроизведением
+    // управление воспроизведением
     useEffect(() => {
         if (!currentSong || !audioRef.current) return;
 
@@ -132,12 +132,30 @@ export const MusicProvider = ({ children }) => {
 
     const seekTo = (seconds) => {
         if (!audioRef.current) return;
+        const audio = audioRef.current;
+        const safeNumber = Number(seconds) || 0;
 
-        // Это самая важная строчка во всём плеере:
-        audioRef.current.currentTime = seconds;
+        const bounded = Math.max(0, Math.min(safeNumber, Number(audio.duration) || safeNumber));
 
-        // СИНХРОННО обновляем состояние, чтобы PlayerBar не успел перезаписать его старым currentTime
-        setCurrentTime(seconds);
+        if (audio.readyState < 1) {
+            const onMeta = () => {
+                try {
+                    audio.currentTime = Math.min(bounded, audio.duration || bounded);
+                } catch (e) {
+                    console.warn("seek after loadedmetadata failed:", e);
+                }
+                audio.removeEventListener("loadedmetadata", onMeta);
+                setCurrentTime(audio.currentTime);
+            };
+            audio.addEventListener("loadedmetadata", onMeta);
+        } else {
+            try {
+                audio.currentTime = bounded;
+            } catch (e) {
+                console.warn("seek failed:", e);
+            }
+            setCurrentTime(bounded);
+        }
     };
 
     const setVolume = (volumePercent) => {
