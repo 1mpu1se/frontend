@@ -1,9 +1,10 @@
 "use client";
+
 import React, { useState } from "react";
 import { IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
 import { MoreHorizontal } from "lucide-react";
 
-export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout }) {
+export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, isAdmin = false }) {
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
 
@@ -45,24 +46,34 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout }) 
                     },
                 }}
             >
-                <MenuItem onClick={handleAdd}>
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                        <img src="/music/track-menu/add.svg" alt="Добавить" className="w-5.5 h-5.5" />
-                    </ListItemIcon>
-                    <ListItemText primary="Добавить в плейлист" />
-                </MenuItem>
+                {/* Пункты, доступные только админам — рендерим по отдельности, без Fragment */}
+                {isAdmin && (
+                    <MenuItem onClick={handleAdd}>
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                            <img src="/music/track-menu/add.svg" alt="Добавить" className="w-5.5 h-5.5" />
+                        </ListItemIcon>
+                        <ListItemText primary="Добавить в плейлист" />
+                    </MenuItem>
+                )}
 
-                <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
+                {isAdmin && (
+                    <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
+                )}
 
-                <MenuItem onClick={handleDelete}>
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                        <img src="/music/track-menu/delete.svg" alt="Удалить" className="w-5.5 h-5.5" />
-                    </ListItemIcon>
-                    <ListItemText primary="Удалить" />
-                </MenuItem>
+                {isAdmin && (
+                    <MenuItem onClick={handleDelete}>
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                            <img src="/music/track-menu/delete.svg" alt="Удалить" className="w-5.5 h-5.5" />
+                        </ListItemIcon>
+                        <ListItemText primary="Удалить" />
+                    </MenuItem>
+                )}
 
-                <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
+                {isAdmin && (
+                    <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
+                )}
 
+                {/* Всегда доступный пункт */}
                 <MenuItem onClick={handleAbout}>
                     <ListItemIcon sx={{ minWidth: 36 }}>
                         <img src="/music/track-menu/info.svg" alt="О треке" className="w-5.5 h-5.5" />

@@ -1,8 +1,10 @@
 "use client";
+
 import { useState } from "react";
 import { X, User, Lock } from "lucide-react";
 import Image from "next/image";
 import authApi from "@/app/api/auth";
+import { useUser } from "@/app/UserContext";
 
 export default function AuthModal({ isOpen, onClose, onAuth }) {
     const [mode, setMode] = useState("login"); // "login" или "register"
@@ -14,11 +16,17 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
+    const { setUser } = useUser();
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
 
         if (mode === "register") {
+            if (formData.username.length < 4) {
+                setError("Имя пользователя должно содержать минимум 4 символа");
+                return;
+            }
             if (formData.password !== formData.confirmPassword) {
                 setError("Пароли не совпадают");
                 return;
@@ -31,23 +39,31 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
 
         setLoading(true);
         try {
-            let res;
+            // регистрируем или логинимся — сервер вернёт token
             if (mode === "register") {
-                res = await authApi.register({
+                await authApi.register({
                     username: formData.username,
                     password: formData.password,
                 });
             } else {
-                res = await authApi.login({
+                await authApi.login({
                     username: formData.username,
                     password: formData.password,
                 });
             }
 
-            onAuth && onAuth(res.user);
+            // получаем актуальные данные пользователя (включая is_admin) по токену
+            const currentUser = await authApi.whoAmI();
+            if (!currentUser) {
+                throw new Error("Не удалось получить данные пользователя");
+            }
+
+            setUser(currentUser);
+
+            onAuth && onAuth(currentUser);
             onClose();
         } catch (err) {
-            setError(err.message || "Ошибка авторизации");
+            setError(err?.message || "Ошибка авторизации");
         } finally {
             setLoading(false);
         }

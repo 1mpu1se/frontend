@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Menu, User, LogOut } from "lucide-react";
@@ -7,14 +8,14 @@ import { MusicProvider, useMusic } from "@/app/MusicContext";
 import PlayerBar from "@/app/components/PlayerBar";
 import AuthModal from "@/app/components/AuthModal";
 import "@/app/globals.css";
-import authApi from "@/app/api/auth";
+import { UserProvider, useUser } from "@/app/UserContext";
 
 function LayoutContent({ children }) {
     const { playingSongId, currentSong, isPlaying, handlePlayToggle, handlePrev, handleNext } = useMusic();
     const playerVisible = playingSongId !== null;
 
     const [authModalOpen, setAuthModalOpen] = useState(false);
-    const [user, setUser] = useState(null);
+    const { user, hydrated, setUser, logout } = useUser();
 
     useEffect(() => {
         let rafId = null;
@@ -44,21 +45,12 @@ function LayoutContent({ children }) {
         };
     }, [playerVisible]);
 
-    useEffect(() => {
-        const existingUser = authApi.getUser();
-        if (existingUser) {
-            setUser(existingUser);
-        }
-    }, []);
-
     const handleAuth = (userData) => {
         setUser(userData);
-        authApi.setUser(userData);
     };
 
     const handleLogout = async () => {
-        await authApi.logout();
-        setUser(null);
+        await logout();
     };
 
     return (
@@ -119,35 +111,39 @@ function LayoutContent({ children }) {
                             />
                         </Link>
 
-                        <nav className="hidden md:flex gap-4">
+                        <nav className="hidden md:flex gap-4 absolute left-1/2 transform -translate-x-1/2 pointer-events-auto">
                             <Link href="/music" className="px-4 py-2 rounded-full hover:bg-white/10 transition">музыка</Link>
                             <Link href="/playlists" className="px-4 py-2 rounded-full hover:bg-white/10 transition">плейлисты</Link>
                             <Link href="/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">загрузка</Link>
                         </nav>
 
                         <div className="flex items-center gap-3">
-                            {user ? (
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 min-h-[44px]">
-                                        <User size={18} />
-                                        <span className="text-sm font-medium">{user.username}</span>
+                            {hydrated ? (
+                                user ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 min-h-[44px]">
+                                            <User size={18} />
+                                            <span className="text-sm font-medium">{user.username}</span>
+                                        </div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="p-2 rounded-full hover:bg-white/10 transition"
+                                            title="Выйти"
+                                        >
+                                            <LogOut size={20} />
+                                        </button>
                                     </div>
+                                ) : (
                                     <button
-                                        onClick={handleLogout}
-                                        className="p-2 rounded-full hover:bg-white/10 transition"
-                                        title="Выйти"
+                                        onClick={() => setAuthModalOpen(true)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition min-h-[44px]"
                                     >
-                                        <LogOut size={20} />
+                                        <User size={18} />
+                                        <span className="text-sm font-medium">Войти</span>
                                     </button>
-                                </div>
+                                )
                             ) : (
-                                <button
-                                    onClick={() => setAuthModalOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition min-h-[44px]"
-                                >
-                                    <User size={18} />
-                                    <span className="text-sm font-medium">Войти</span>
-                                </button>
+                                <div style={{ width: 120, height: 44 }} aria-hidden />
                             )}
 
                             <button className="text-white hover:text-yellow-100 transition p-2">
@@ -188,7 +184,9 @@ export default function RootLayout({ children }) {
         <html lang="ru">
             <body>
                 <MusicProvider>
-                    <LayoutContent>{children}</LayoutContent>
+                    <UserProvider>
+                        <LayoutContent>{children}</LayoutContent>
+                    </UserProvider>
                 </MusicProvider>
             </body>
         </html>

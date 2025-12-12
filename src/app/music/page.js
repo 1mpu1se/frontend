@@ -5,11 +5,15 @@ import Equalizer from "@/app/components/Equalizer";
 import TrackMenu from "@/app/components/TrackMenu";
 import { useMusic } from "@/app/MusicContext";
 import { parseDuration, formatTime } from '@/app/utils/time';
+import authApi from "@/app/api/auth";
+import { useUser } from "@/app/UserContext";
 
 export default function MusicPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const { songs, loading, error, playingSongId, isPlaying, currentTime, selectOrToggle, deleteTrack } = useMusic();
     const [mounted, setMounted] = useState(false);
+
+    const { user } = useUser();
 
     useEffect(() => {
         setMounted(true);
@@ -141,6 +145,7 @@ export default function MusicPage() {
                                                             onAbout={(s) => {
                                                                 alert(`${s.title} — ${s.artist}\nДлительность: ${s.duration}`);
                                                             }}
+                                                            isAdmin={user?.is_admin === true}
                                                         />
                                                     )}
                                                 </div>

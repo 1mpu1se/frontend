@@ -32,9 +32,7 @@ function extractErrorMessage(data) {
     if (!data) return null;
     if (typeof data === "string") return data;
     if (data.detail && Array.isArray(data.detail)) {
-        return data.detail
-            .map((d) => d.msg || (d?.type ? `${d.type}` : JSON.stringify(d)))
-            .join(", ");
+        return data.detail.map(d => d.msg || JSON.stringify(d)).join(", ");
     }
     if (data.message) return data.message;
     return null;
@@ -43,15 +41,19 @@ function extractErrorMessage(data) {
 export function setToken(token) {
     if (typeof window !== "undefined") {
         localStorage.setItem(TOKEN_KEY, token);
+        if (localStorage.getItem("token")) localStorage.removeItem("token");
     }
 }
+
 export function getToken() {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY) || localStorage.getItem("token") || null;
 }
+
 export function clearToken() {
     if (typeof window !== "undefined") {
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem("token");
     }
 }
 export function isAuthenticated() {
@@ -62,6 +64,10 @@ export function setUser(user) {
     if (typeof window !== "undefined") {
         try {
             localStorage.setItem(USER_KEY, JSON.stringify(user));
+        } catch {
+        }
+        try {
+            window.dispatchEvent(new CustomEvent("authChange", { detail: user }));
         } catch {
         }
     }
@@ -78,6 +84,10 @@ export function getUser() {
 export function clearUser() {
     if (typeof window !== "undefined") {
         localStorage.removeItem(USER_KEY);
+        try {
+            window.dispatchEvent(new CustomEvent("authChange", { detail: null }));
+        } catch {
+        }
     }
 }
 
@@ -86,14 +96,10 @@ export async function register({ username, password }) {
         method: "POST",
         body: JSON.stringify({ username, password }),
     });
-
     const token = data?.token || (typeof data === "string" ? data : null);
     if (!token) throw new Error("Токен не получен от сервера");
-
     setToken(token);
-    const user = { username };
-    setUser(user);
-    return { token, user };
+    return { token };
 }
 
 export async function login({ username, password }) {
@@ -106,9 +112,7 @@ export async function login({ username, password }) {
     if (!token) throw new Error("Токен не получен от сервера");
 
     setToken(token);
-    const user = { username };
-    setUser(user);
-    return { token, user };
+    return { token };
 }
 
 export async function logout() {
@@ -123,6 +127,36 @@ export async function logout() {
     }
     clearToken();
     clearUser();
+}
+
+export async function whoAmI() {
+    const token = getToken();
+    if (!token) return null;
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/user/me/?token=${encodeURIComponent(token)}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        });
+
+        if (res.status === 401 || res.status === 403) {
+            clearToken();
+            clearUser();
+            return null;
+        }
+        if (!res.ok) {
+            console.warn("whoAmI: server returned", res.status);
+            return null;
+        }
+        const data = await res.json();
+        const user = data?.user ?? null;
+        if (user) setUser(user);
+        return user;
+    } catch (err) {
+        // сетевые ошибки (offline, timeout) - НЕ чистим токен
+        console.warn("whoAmI network error:", err);
+        return null;
+    }
 }
 
 export function authQuery() {
@@ -142,6 +176,7 @@ const authApi = {
     getUser,
     clearUser,
     authQuery,
+    whoAmI
 };
 
 export default authApi;

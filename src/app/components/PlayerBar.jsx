@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
 import { useMusic } from "@/app/MusicContext";
