@@ -1,139 +1,198 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useRef, useEffect } from "react";
+import { musicApi } from "@/app/api/musicApi";
 
 const MusicContext = createContext();
 
-export function MusicProvider({ children }) {
-    const [songs] = useState([
-        { id: 1, title: "Я твой номер один", artist: "Дима Билан", duration: "3:09", cover: "https://picsum.photos/48?random=1" },
-        { id: 2, title: "Moscow In Da Club", artist: "Тимати", duration: "2:05", cover: "https://picsum.photos/48?random=2" },
-        { id: 3, title: "Небеса", artist: "Владимир Меладзе", duration: "3:56", cover: "https://picsum.photos/48?random=3" },
-        { id: 4, title: "П.М.М.Л", artist: "Земфира", duration: "3:37", cover: "https://picsum.photos/48?random=4" },
-        { id: 5, title: "sweater weather", artist: "NovaKing", duration: "3:31", cover: "https://picsum.photos/48?random=5" },
-        { id: 6, title: "Меня не будет", artist: "ANIKV, SALUKI", duration: "4:15", cover: "https://picsum.photos/48?random=6" },
-        { id: 7, title: "ГИМН КАЧКОВ", artist: "maxxytren, bulk_machine", duration: "2:21", cover: "https://picsum.photos/48?random=7" },
-        { id: 8, title: "Душа, кайфуй", artist: "Vuska Zippo", duration: "2:56", cover: "https://picsum.photos/48?random=8" },
-        { id: 9, title: "Radio", artist: "Rammstein", duration: "4:37", cover: "https://picsum.photos/48?random=9" },
-    ]);
-
-    const [playingSongId, setPlayingSongId] = useState(null);
+export const MusicProvider = ({ children }) => {
+    const audioRef = useRef(null);
+    const [songs, setSongs] = useState([]);
+    const [currentSongId, setCurrentSongId] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
-    const accMsRef = useRef(0);
-    const [seekTrigger, setSeekTrigger] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const currentSong = songs.find(s => s.id === playingSongId);
+    const currentSong = songs.find(s => s.id === currentSongId) || null;
 
-    // Обновление времени трека
+    const playingSongId = currentSongId;
+
+    // загрузка треков
+    const loadSongs = async () => {
+        setLoading(true);
+        try {
+            const data = await musicApi.getTracks();
+            console.log("Songs from server:", data);
+
+            const songsWithDuration = await Promise.all(
+                data.map(song => new Promise(resolve => {
+                    const audio = new Audio();
+                    audio.src = song.audioUrl;
+                    audio.onloadedmetadata = () => {
+                        resolve({ ...song, duration: audio.duration });
+                    };
+                    audio.onerror = () => {
+                        resolve({ ...song, duration: 0 });
+                    };
+                }))
+            );
+
+            setSongs(songsWithDuration);
+            setError(null);
+        } catch (err) {
+            console.error(err);
+            setError(err.message || "Ошибка загрузки треков");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        if (!playingSongId) return;
+        loadSongs();
+    }, []);
 
-        const song = songs.find(s => s.id === playingSongId);
-        if (!song) return;
+    useEffect(() => {
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+            audioRef.current.volume = 0.8;
+        }
+    }, []);
 
-        const [min, sec] = song.duration.split(":").map(Number);
-        const totalSeconds = min * 60 + sec;
+    // управление воспроизведением
+    useEffect(() => {
+        if (!currentSong || !audioRef.current) return;
 
-        if (!isPlaying) {
-            setCurrentTime(Math.floor(accMsRef.current / 1000));
-            return;
+        const url = currentSong.audioUrl;
+
+        if (audioRef.current.src !== url) {
+            audioRef.current.src = url;
+            audioRef.current.load();
         }
 
-        const startTime = Date.now() - accMsRef.current;
+        const handleTimeUpdate = () => {
+            setCurrentTime(audioRef.current.currentTime);
+        };
 
-        const interval = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const seconds = Math.floor(elapsed / 1000);
+        const handleEnded = () => {
+            selectNext();
+        };
 
-            if (seconds >= totalSeconds) {
-                setCurrentTime(totalSeconds);
-                accMsRef.current = totalSeconds * 1000;
-                clearInterval(interval);
-            } else {
-                setCurrentTime(seconds);
-                accMsRef.current = elapsed;
+        audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+        audioRef.current.addEventListener('ended', handleEnded);
+
+        // Управление воспроизведением
+        if (isPlaying) {
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.error("Play error:", e);
+                    setIsPlaying(false);
+                });
             }
-        }, 100);
+        } else {
+            audioRef.current.pause();
+        }
 
-        return () => clearInterval(interval);
-    }, [playingSongId, isPlaying, songs, seekTrigger]);
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+                audioRef.current.removeEventListener('ended', handleEnded);
+            }
+        };
+    }, [currentSongId, isPlaying, currentSong]);
+
+    const togglePlay = () => {
+        setIsPlaying(prev => !prev);
+    };
 
     const selectOrToggle = (id) => {
-        if (playingSongId === id) {
-            setIsPlaying(p => !p);
+        if (currentSongId === id) {
+            togglePlay();
         } else {
-            setPlayingSongId(id);
+            setCurrentSongId(id);
             setIsPlaying(true);
+        }
+    };
+
+    const selectNext = () => {
+        if (!songs.length) return;
+        const idx = songs.findIndex(s => s.id === currentSongId);
+        const nextIdx = (idx + 1) % songs.length;
+        setCurrentSongId(songs[nextIdx].id);
+        setIsPlaying(true);
+    };
+
+    const selectPrev = () => {
+        if (!songs.length) return;
+        const idx = songs.findIndex(s => s.id === currentSongId);
+        const prevIdx = (idx - 1 + songs.length) % songs.length;
+        setCurrentSongId(songs[prevIdx].id);
+        setIsPlaying(true);
+    };
+
+    const seekTo = (seconds) => {
+        if (!audioRef.current) return;
+        const audio = audioRef.current;
+        const safeNumber = Number(seconds) || 0;
+
+        const bounded = Math.max(0, Math.min(safeNumber, Number(audio.duration) || safeNumber));
+
+        if (audio.readyState < 1) {
+            const onMeta = () => {
+                try {
+                    audio.currentTime = Math.min(bounded, audio.duration || bounded);
+                } catch (e) {
+                    console.warn("seek after loadedmetadata failed:", e);
+                }
+                audio.removeEventListener("loadedmetadata", onMeta);
+                setCurrentTime(audio.currentTime);
+            };
+            audio.addEventListener("loadedmetadata", onMeta);
+        } else {
+            try {
+                audio.currentTime = bounded;
+            } catch (e) {
+                console.warn("seek failed:", e);
+            }
+            setCurrentTime(bounded);
+        }
+    };
+
+    const setVolume = (volumePercent) => {
+        if (!audioRef.current) return;
+        audioRef.current.volume = Math.max(0, Math.min(1, volumePercent / 100));
+    };
+
+    const deleteTrack = async (id) => {
+        await musicApi.deleteTrack(id);
+        setSongs(prev => prev.filter(s => s.id !== id));
+        if (currentSongId === id) {
+            setCurrentSongId(null);
+            setIsPlaying(false);
             setCurrentTime(0);
-            accMsRef.current = 0;
         }
-    };
-
-    const handlePlayToggle = () => {
-        setIsPlaying(p => !p);
-    };
-
-    const handlePrev = () => {
-        if (!playingSongId) {
-            setPlayingSongId(songs[0].id);
-            setIsPlaying(true);
-            return;
-        }
-        const idx = songs.findIndex((s) => s.id === playingSongId);
-        const prev = idx <= 0 ? songs[songs.length - 1].id : songs[idx - 1].id;
-        setPlayingSongId(prev);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        accMsRef.current = 0;
-    };
-
-    const handleNext = () => {
-        if (!playingSongId) {
-            setPlayingSongId(songs[0].id);
-            setIsPlaying(true);
-            return;
-        }
-        const idx = songs.findIndex((s) => s.id === playingSongId);
-        const next = idx >= songs.length - 1 ? songs[0].id : songs[idx + 1].id;
-        setPlayingSongId(next);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        accMsRef.current = 0;
-    };
-
-    // Функция для обновления времени при перематывании
-    const seekTo = (milliseconds) => {
-        accMsRef.current = milliseconds;
-        setCurrentTime(Math.floor(milliseconds / 1000));
-        setSeekTrigger(prev => prev + 1);
-    };
-
-    const value = {
-        songs,
-        playingSongId,
-        isPlaying,
-        currentTime,
-        currentSong,
-        accMsRef,
-        selectOrToggle,
-        handlePlayToggle,
-        handlePrev,
-        handleNext,
-        setCurrentTime,
-        seekTo,
     };
 
     return (
-        <MusicContext.Provider value={value}>
+        <MusicContext.Provider value={{
+            songs,
+            loading,
+            error,
+            currentSong,
+            currentTime,
+            isPlaying,
+            playingSongId,
+            togglePlay,
+            selectOrToggle,
+            selectNext,
+            selectPrev,
+            seekTo,
+            setVolume,
+            deleteTrack,
+        }}>
             {children}
         </MusicContext.Provider>
     );
-}
+};
 
-export function useMusic() {
-    const context = useContext(MusicContext);
-    if (!context) {
-        throw new Error("useMusic must be used within MusicProvider");
-    }
-    return context;
-}
+export const useMusic = () => useContext(MusicContext);

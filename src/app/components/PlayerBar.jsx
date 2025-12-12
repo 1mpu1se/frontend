@@ -1,76 +1,88 @@
 "use client";
+
 import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
 import { useMusic } from "@/app/MusicContext";
+import { formatSeconds } from '@/app/utils/time';
 import "@/app/components/PlayerBar.css";
 
-export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev, onNext }) {
+export default function PlayerBar({ currentSong, isPlaying, onTogglePlay, onPrev, onNext }) {
     const [progress, setProgress] = useState(0);
     const [volume, setVolume] = useState(80);
-    const accMsRef = useRef(0);
-    const [isSeeking, setIsSeeking] = useState(false);
-    const { seekTo } = useMusic();
+    const prevVolumeRef = useRef(80);
+
+    const { seekTo, setVolume: setAudioVolume, currentTime } = useMusic();
 
     const [repeatState, setRepeatState] = useState(0);
     const [shuffleActive, setShuffleActive] = useState(false);
 
-    const toggleRepeat = () => {
-        setRepeatState((prev) => (prev + 1) % 3);
-    };
-
-    const toggleShuffle = () => {
-        setShuffleActive((prev) => !prev);
-    };
+    const isUserSeekingRef = useRef(false);
+    const seekingValueRef = useRef(0);
 
     useEffect(() => {
-        accMsRef.current = 0;
-        setProgress(0);
-    }, [currentSong?.id]);
+        setAudioVolume?.(volume);
+    }, [volume, setAudioVolume]);
 
-    useEffect(() => {
-        if (!currentSong) return;
-        const totalMs = parseDuration(currentSong.duration) * 1000;
-        let intervalId = null;
-        if (isPlaying) {
-            const startTime = Date.now() - accMsRef.current;
-            intervalId = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                const pct = Math.min((elapsed / totalMs) * 100, 100);
-                if (!isSeeking) setProgress(pct);
-                if (pct >= 100) {
-                    accMsRef.current = totalMs;
-                    clearInterval(intervalId);
-                }
-            }, 100);
+    const toggleMute = () => {
+        if (volume > 0) {
+            prevVolumeRef.current = volume;
+            setVolume(0);
+        } else {
+            setVolume(prevVolumeRef.current || 80);
         }
-        return () => intervalId && clearInterval(intervalId);
-    }, [isPlaying, currentSong?.id, isSeeking]);
-
-    const formatCurrent = (durationStr) => {
-        const total = parseDuration(durationStr);
-        const curSec = Math.min(Math.floor((progress / 100) * total), total);
-        const m = Math.floor(curSec / 60);
-        const s = curSec % 60;
-        return `${m}:${twoDigits(s)}`;
     };
 
-    const formatTotal = (durationStr) => {
-        const total = parseDuration(durationStr);
-        const m = Math.floor(total / 60);
-        const s = total % 60;
-        return `${m}:${twoDigits(s)}`;
+    useEffect(() => {
+        if (!currentSong) {
+            setProgress(0);
+            return;
+        }
+        const duration = currentSong.duration || 0;
+        if (duration <= 0) return;
+
+        if (isUserSeekingRef.current) {
+            const target = seekingValueRef.current;
+            if (typeof target === "number" && Math.abs(currentTime - target) < 0.6) {
+                isUserSeekingRef.current = false;
+                seekingValueRef.current = 0;
+                const pct = (currentTime / duration) * 100;
+                setProgress(pct);
+            }
+        } else {
+            const pct = (currentTime / duration) * 100;
+            setProgress(pct);
+        }
+    }, [currentTime, currentSong?.id, currentSong?.duration]);
+
+    const handleSeekStart = () => {
+        isUserSeekingRef.current = true;
     };
 
-    const repeatIcons = {
-        off: 'music/repeat-off.svg',
-        playlist: 'music/repeat-on.svg',
-        track: 'music/repeat-one.svg',
+    const handleSeekChange = (_, value) => {
+        const val = Number(value);
+        setProgress(val);
+        seekingValueRef.current = val;
     };
 
-    const shuffleIcons = {
-        off: 'music/shuffle-off.svg',
-        on: 'music/shuffle-on.svg',
+    const handleSeekEnd = (_, value) => {
+        if (!currentSong) {
+            isUserSeekingRef.current = false;
+            return;
+        }
+        const duration = currentSong.duration || 0;
+        const newTime = (Number(value) / 100) * duration;
+
+        seekingValueRef.current = newTime;
+
+        seekTo(newTime);
+
+        setTimeout(() => {
+            if (isUserSeekingRef.current) isUserSeekingRef.current = false;
+        }, 1500);
     };
+
+    const formatCurrent = () => formatSeconds(currentTime);
+    const formatTotal = () => currentSong ? formatSeconds(currentSong.duration) : "0:00";
 
     return (
         <div className="player-bar">
@@ -83,17 +95,8 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                                 <img src="/music/skip-back.svg" alt="Previous" width={22} height={22} />
                             </button>
 
-                            <button
-                                onClick={() => onPlayToggle(null)}
-                                aria-label={isPlaying ? "Pause" : "Play"}
-                                className="icon-btn play-btn"
-                            >
-                                <img
-                                    src={isPlaying ? "music/pause.svg" : "music/play.svg"}
-                                    alt={isPlaying ? "Pause" : "Play"}
-                                    width={32}
-                                    height={32}
-                                />
+                            <button onClick={onTogglePlay} aria-label={isPlaying ? "Pause" : "Play"} className="icon-btn play-btn">
+                                <img src={isPlaying ? "/music/pause.svg" : "/music/play.svg"} alt="Play/Pause" width={32} height={32} />
                             </button>
 
                             <button onClick={onNext} aria-label="Next" className="icon-btn">
@@ -102,22 +105,11 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                         </div>
 
                         <div className="extras">
-                            <button onClick={toggleRepeat} aria-label="Repeat" className="icon-btn">
-                                <img
-                                    src={repeatIcons[ repeatState === 2 ? 'track' : repeatState === 1 ? 'playlist' : 'off' ]}
-                                    alt="Repeat"
-                                    width={22}
-                                    height={22}
-                                />
+                            <button onClick={() => setRepeatState((s) => (s + 1) % 3)} className="icon-btn">
+                                <img src={repeatState === 2 ? "/music/repeat-one.svg" : repeatState === 1 ? "/music/repeat-on.svg" : "/music/repeat-off.svg"} width={22} height={22} />
                             </button>
-
-                            <button onClick={toggleShuffle} aria-label="Shuffle" className="icon-btn">
-                                <img
-                                    src={shuffleIcons[shuffleActive ? 'on' : 'off']}
-                                    alt="Shuffle"
-                                    width={23}
-                                    height={23}
-                                />
+                            <button onClick={() => setShuffleActive(s => !s)} className="icon-btn">
+                                <img src={shuffleActive ? "/music/shuffle-on.svg" : "/music/shuffle-off.svg"} width={23} height={23} />
                             </button>
                         </div>
                     </div>
@@ -142,37 +134,33 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                         <div className="progress-wrapper">
                             <Slider
                                 value={progress}
-                                onChange={(_, val) => {
-                                    setIsSeeking(true);
-                                    setProgress(Number(val));
-                                }}
-                                onChangeCommitted={(_, val) => {
-                                    if (!currentSong) return setIsSeeking(false);
-                                    const totalMs = parseDuration(currentSong.duration) * 1000;
-                                    const newMs = (val / 100) * totalMs;
-                                    accMsRef.current = newMs;
-                                    seekTo(newMs);
-                                    setIsSeeking(false);
-                                }}
+                                onMouseDown={handleSeekStart}
+                                onTouchStart={handleSeekStart}
+                                onChange={handleSeekChange}
+                                onChangeCommitted={handleSeekEnd}
                                 min={0}
                                 max={100}
+                                step={0.1}
                                 disabled={!currentSong}
                                 aria-label="Track progress"
                                 className="track-slider"
                             />
                             <div className="time-text">
                                 {currentSong
-                                    ? `${formatCurrent(currentSong.duration)} / ${formatTotal(currentSong.duration)}`
+                                    ? `${formatCurrent()} / ${formatTotal()}`
                                     : "—"}
                             </div>
                         </div>
                     </div>
 
                     <div className="player-volume">
-                        <img src="/music/volume.svg" alt="Volume" width={18} height={18} />
+                        <button onClick={toggleMute} className="icon-btn" style={{ marginRight: 8 }}>
+                            <img src={(volume === 0) ? "/music/volume-mute.svg" : "/music/volume.svg"} width={18} height={18} />
+                        </button>
+
                         <Slider
                             value={volume}
-                            onChange={(_, val) => setVolume(Number(val))}
+                            onChange={(_, v) => setVolume(Number(v))}
                             min={0}
                             max={100}
                             aria-label="Volume"
@@ -183,13 +171,4 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
             </div>
         </div>
     );
-}
-
-function parseDuration(str) {
-    if (!str) return 0;
-    const [min, sec] = String(str).split(":").map(Number);
-    return (min || 0) * 60 + (sec || 0);
-}
-function twoDigits(n) {
-    return n.toString().padStart(2, "0");
 }

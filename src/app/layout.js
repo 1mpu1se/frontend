@@ -1,17 +1,24 @@
 "use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { Menu } from "lucide-react";
-import { useEffect } from "react";
+import { Menu, User, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 import { MusicProvider, useMusic } from "@/app/MusicContext";
 import PlayerBar from "@/app/components/PlayerBar";
+import AuthModal from "@/app/components/AuthModal";
 import "@/app/globals.css";
+import { UserProvider, useUser } from "@/app/UserContext";
 
 function LayoutContent({ children }) {
-    const { playingSongId, currentSong, isPlaying, handlePlayToggle, handlePrev, handleNext } = useMusic();
+    const { playingSongId, currentSong, isPlaying, togglePlay, selectOrToggle: handlePlayToggle, selectPrev: handlePrev, selectNext: handleNext } = useMusic();
     const playerVisible = playingSongId !== null;
 
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+    const { user, hydrated, setUser, logout } = useUser();
+
     useEffect(() => {
+        let rafId = null;
         const setPlayerVars = () => {
             const header = document.querySelector("header");
             if (!header) return;
@@ -20,18 +27,34 @@ function LayoutContent({ children }) {
             document.documentElement.style.setProperty("--header-height", `${Math.ceil(rect.height)}px`);
             document.documentElement.style.setProperty("--player-height", playerVisible ? "64px" : "0px");
         };
+
+        const onScroll = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(setPlayerVars);
+        };
         setPlayerVars();
         window.addEventListener("resize", setPlayerVars);
+        window.addEventListener("scroll", onScroll, { passive: true });
         const obs = new MutationObserver(setPlayerVars);
         obs.observe(document.body, { childList: true, subtree: true });
         return () => {
             window.removeEventListener("resize", setPlayerVars);
+            window.removeEventListener("scroll", onScroll);
             obs.disconnect();
+            if (rafId) cancelAnimationFrame(rafId);
         };
     }, [playerVisible]);
 
+    const handleAuth = (userData) => {
+        setUser(userData);
+    };
+
+    const handleLogout = async () => {
+        await logout();
+    };
+
     return (
-        <div className="min-h-screen relative overflow-hidden bg-purple-300">
+        <div className="min-h-screen relative overflow-visible bg-purple-300">
             {/* SVG Background Blobs */}
             <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none" viewBox="0 0 1780 900" preserveAspectRatio="xMidYMid slice">
                 <defs>
@@ -66,49 +89,69 @@ function LayoutContent({ children }) {
             </svg>
 
             {/* Header */}
-            <header className="relative z-10 px-6 py-2 flex items-center justify-center bg-[#826d9d]/80 backdrop-blur-sm text-white">
-                <Link href="/" className="flex items-center gap-2 mr-180">
-                    <Image
-                        src="/logo-mobile.svg"
-                        alt="impulS mobile logo"
-                        width={100}
-                        height={100}
-                        className="block sm:hidden h-8 w-auto hover:opacity-90 transition"
-                        priority
-                    />
+            <header className="relative z-10 bg-[#826d9d]/80 backdrop-blur-sm text-white">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8" style={{ paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
+                    <div className="flex items-center justify-between py-2">
+                        <Link href="/" className="flex items-center gap-2">
+                            <Image
+                                src="/logo-mobile.svg"
+                                alt="impulS mobile logo"
+                                width={100}
+                                height={100}
+                                className="block sm:hidden h-8 w-auto transition"
+                                priority
+                            />
+                            <Image
+                                src="/logo.svg"
+                                alt="impulS logo"
+                                width={150}
+                                height={150}
+                                className="hidden sm:block h-9 lg:h-10 w-auto transition"
+                                priority
+                            />
+                        </Link>
 
-                    <Image
-                        src="/logo.svg"
-                        alt="impulS logo"
-                        width={150}
-                        height={150}
-                        className="hidden sm:block h-9 w-auto hover:opacity-90 transition"
-                        priority
-                    />
-                </Link>
-                <nav className="flex gap-4 text-white">
-                    <Link
-                        href="/music"
-                        className="px-6 py-2 rounded-full hover:bg-white/10 transition-all relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:h-0.5 after:bg-white after:transition-all hover:after:w-3/5"
-                    >
-                        музыка
-                    </Link>
-                    <Link
-                        href="/playlists"
-                        className="px-6 py-2 rounded-full hover:bg-white/10 transition-all relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:h-0.5 after:bg-white after:transition-all hover:after:w-3/5"
-                    >
-                        плейлисты
-                    </Link>
-                    <Link
-                        href="/upload"
-                        className="px-6 py-2 rounded-full hover:bg-white/10 transition-all relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-0 after:h-0.5 after:bg-white after:transition-all hover:after:w-3/5"
-                    >
-                        загрузка
-                    </Link>
-                </nav>
-                <button className="text-white hover:text-yellow-100 transition ml-180">
-                    <Menu size={24} />
-                </button>
+                        <nav className="hidden md:flex gap-4 absolute left-1/2 transform -translate-x-1/2 pointer-events-auto">
+                            <Link href="/music" className="px-4 py-2 rounded-full hover:bg-white/10 transition">музыка</Link>
+                            <Link href="/playlists" className="px-4 py-2 rounded-full hover:bg-white/10 transition">плейлисты</Link>
+                            <Link href="/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">загрузка</Link>
+                        </nav>
+
+                        <div className="flex items-center gap-3">
+                            {hydrated ? (
+                                user ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 min-h-[44px]">
+                                            <User size={18} />
+                                            <span className="text-sm font-medium">{user.username}</span>
+                                        </div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="p-2 rounded-full hover:bg-white/10 transition"
+                                            title="Выйти"
+                                        >
+                                            <LogOut size={20} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setAuthModalOpen(true)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition min-h-[44px]"
+                                    >
+                                        <User size={18} />
+                                        <span className="text-sm font-medium">Войти</span>
+                                    </button>
+                                )
+                            ) : (
+                                <div style={{ width: 120, height: 44 }} aria-hidden />
+                            )}
+
+                            <button className="text-white hover:text-yellow-100 transition p-2">
+                                <Menu size={24} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </header>
 
             {/* Main Content */}
@@ -121,11 +164,17 @@ function LayoutContent({ children }) {
                 <PlayerBar
                     currentSong={currentSong}
                     isPlaying={isPlaying}
-                    onPlayToggle={handlePlayToggle}
+                    onTogglePlay={togglePlay}
                     onPrev={handlePrev}
                     onNext={handleNext}
                 />
             )}
+
+            <AuthModal
+                isOpen={authModalOpen}
+                onClose={() => setAuthModalOpen(false)}
+                onAuth={handleAuth}
+            />
         </div>
     );
 }
@@ -135,7 +184,9 @@ export default function RootLayout({ children }) {
         <html lang="ru">
             <body>
                 <MusicProvider>
-                    <LayoutContent>{children}</LayoutContent>
+                    <UserProvider>
+                        <LayoutContent>{children}</LayoutContent>
+                    </UserProvider>
                 </MusicProvider>
             </body>
         </html>
