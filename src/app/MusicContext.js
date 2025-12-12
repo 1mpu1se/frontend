@@ -1,189 +1,180 @@
 "use client";
-
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
-import { musicApi } from "@/app/api";
+import React, { createContext, useContext, useState, useRef, useEffect } from "react";
+import { musicApi } from "@/app/api/musicApi";
 
 const MusicContext = createContext();
 
-export function MusicProvider({ children }) {
+export const MusicProvider = ({ children }) => {
+    const audioRef = useRef(null);
     const [songs, setSongs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    const [playingSongId, setPlayingSongId] = useState(null);
+    const [currentSongId, setCurrentSongId] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
-    const accMsRef = useRef(0);
-    const [seekTrigger, setSeekTrigger] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const endedRef = useRef(false);
-    const currentSong = songs.find(s => s.id === playingSongId);
+    const currentSong = songs.find(s => s.id === currentSongId) || null;
+
+    const playingSongId = currentSongId;
+
+    // загрузка треков
+    const loadSongs = async () => {
+        setLoading(true);
+        try {
+            const data = await musicApi.getTracks();
+            console.log("Songs from server:", data);
+
+            const songsWithDuration = await Promise.all(
+                data.map(song => new Promise(resolve => {
+                    const audio = new Audio();
+                    audio.src = song.audioUrl;
+                    audio.onloadedmetadata = () => {
+                        resolve({ ...song, duration: audio.duration });
+                    };
+                    audio.onerror = () => {
+                        resolve({ ...song, duration: 0 });
+                    };
+                }))
+            );
+
+            setSongs(songsWithDuration);
+            setError(null);
+        } catch (err) {
+            console.error(err);
+            setError(err.message || "Ошибка загрузки треков");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        loadTracks();
+        loadSongs();
     }, []);
 
-    const loadTracks = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await musicApi.getTracks();
-            setSongs(response.data || []);
-        } catch (err) {
-            console.error('Failed to load tracks:', err);
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const playSongByIndex = useCallback((index) => {
-        if (!songs || songs.length === 0) return;
-        const normalized = ((index % songs.length) + songs.length) % songs.length;
-        const song = songs[normalized];
-        if (!song) return;
-
-        setPlayingSongId(song.id);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        accMsRef.current = 0;
-        endedRef.current = false;
-    }, [songs]);
-
-    const navigate = useCallback((offset) => {
-        if (!songs || songs.length === 0) return;
-
-        const currentIdx = songs.findIndex(s => s.id === playingSongId);
-        const base = currentIdx === -1 ? (offset > 0 ? 0 : songs.length - 1) : currentIdx;
-        const nextIdx = base + offset;
-        playSongByIndex(nextIdx);
-    }, [songs, playingSongId, playSongByIndex]);
-
-    const handlePrev = useCallback(() => navigate(-1), [navigate]);
-    const handleNext = useCallback(() => navigate(1), [navigate]);
-
-    // Обновление времени трека и автоматический переход на следующий
     useEffect(() => {
-        endedRef.current = false;
-        if (!playingSongId) return;
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+            audioRef.current.volume = 0.8;
+        }
+    }, []);
 
-        const song = songs.find(s => s.id === playingSongId);
-        if (!song) return;
+    // Управление воспроизведением
+    useEffect(() => {
+        if (!currentSong || !audioRef.current) return;
 
-        const [min = 0, sec = 0] = song.duration.split(":").map(Number);
-        const totalSeconds = (min || 0) * 60 + (sec || 0);
+        const url = currentSong.audioUrl;
 
-        if (!isPlaying) {
-            setCurrentTime(Math.floor(accMsRef.current / 1000));
-            return;
+        if (audioRef.current.src !== url) {
+            audioRef.current.src = url;
+            audioRef.current.load();
         }
 
-        const startTime = Date.now() - accMsRef.current;
+        const handleTimeUpdate = () => {
+            setCurrentTime(audioRef.current.currentTime);
+        };
 
-        const interval = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const seconds = Math.floor(elapsed / 1000);
+        const handleEnded = () => {
+            selectNext();
+        };
 
-            if (seconds >= totalSeconds) {
-                setCurrentTime(totalSeconds);
-                accMsRef.current = totalSeconds * 1000;
-                clearInterval(interval);
+        audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+        audioRef.current.addEventListener('ended', handleEnded);
 
-                if (!endedRef.current) {
-                    endedRef.current = true;
-                    setTimeout(() => {
-                        handleNext();
-                    }, 50);
-                }
-            } else {
-                setCurrentTime(seconds);
-                accMsRef.current = elapsed;
+        // Управление воспроизведением
+        if (isPlaying) {
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.error("Play error:", e);
+                    setIsPlaying(false);
+                });
             }
-        }, 100);
+        } else {
+            audioRef.current.pause();
+        }
 
-        return () => clearInterval(interval);
-    }, [playingSongId, isPlaying, songs, seekTrigger, handleNext]);
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+                audioRef.current.removeEventListener('ended', handleEnded);
+            }
+        };
+    }, [currentSongId, isPlaying, currentSong]);
+
+    const togglePlay = () => {
+        setIsPlaying(prev => !prev);
+    };
 
     const selectOrToggle = (id) => {
-        if (playingSongId === id) {
-            setIsPlaying(p => !p);
+        if (currentSongId === id) {
+            togglePlay();
         } else {
-            const idx = songs.findIndex(s => s.id === id);
-            playSongByIndex(idx === -1 ? 0 : idx);
+            setCurrentSongId(id);
+            setIsPlaying(true);
         }
     };
 
-    const handlePlayToggle = () => {
-        setIsPlaying(p => !p);
+    const selectNext = () => {
+        if (!songs.length) return;
+        const idx = songs.findIndex(s => s.id === currentSongId);
+        const nextIdx = (idx + 1) % songs.length;
+        setCurrentSongId(songs[nextIdx].id);
+        setIsPlaying(true);
     };
 
-    const seekTo = (milliseconds) => {
-        accMsRef.current = milliseconds;
-        setCurrentTime(Math.floor(milliseconds / 1000));
-        setSeekTrigger(prev => prev + 1);
+    const selectPrev = () => {
+        if (!songs.length) return;
+        const idx = songs.findIndex(s => s.id === currentSongId);
+        const prevIdx = (idx - 1 + songs.length) % songs.length;
+        setCurrentSongId(songs[prevIdx].id);
+        setIsPlaying(true);
     };
 
-    // Методы для работы с треками через API
+    const seekTo = (seconds) => {
+        if (!audioRef.current) return;
+
+        // Это самая важная строчка во всём плеере:
+        audioRef.current.currentTime = seconds;
+
+        // СИНХРОННО обновляем состояние, чтобы PlayerBar не успел перезаписать его старым currentTime
+        setCurrentTime(seconds);
+    };
+
+    const setVolume = (volumePercent) => {
+        if (!audioRef.current) return;
+        audioRef.current.volume = Math.max(0, Math.min(1, volumePercent / 100));
+    };
+
     const deleteTrack = async (id) => {
-        try {
-            await musicApi.deleteTrack(id);
-            setSongs(prev => prev.filter(s => s.id !== id));
-
-            if (playingSongId === id) {
-                setPlayingSongId(null);
-                setIsPlaying(false);
-                setCurrentTime(0);
-            }
-        } catch (err) {
-            console.error('Failed to delete track:', err);
-            throw err;
+        await musicApi.deleteTrack(id);
+        setSongs(prev => prev.filter(s => s.id !== id));
+        if (currentSongId === id) {
+            setCurrentSongId(null);
+            setIsPlaying(false);
+            setCurrentTime(0);
         }
-    };
-
-    const searchTracks = async (query) => {
-        try {
-            setLoading(true);
-            const response = await musicApi.searchTracks(query);
-            return response.data || [];
-        } catch (err) {
-            console.error('Failed to search tracks:', err);
-            throw err;
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const value = {
-        songs,
-        loading,
-        error,
-        playingSongId,
-        isPlaying,
-        currentTime,
-        currentSong,
-        accMsRef,
-        selectOrToggle,
-        handlePlayToggle,
-        handlePrev,
-        handleNext,
-        setCurrentTime,
-        seekTo,
-        loadTracks,
-        deleteTrack,
-        searchTracks,
     };
 
     return (
-        <MusicContext.Provider value={value}>
+        <MusicContext.Provider value={{
+            songs,
+            loading,
+            error,
+            currentSong,
+            currentTime,
+            isPlaying,
+            playingSongId,
+            togglePlay,
+            selectOrToggle,
+            selectNext,
+            selectPrev,
+            seekTo,
+            setVolume,
+            deleteTrack,
+        }}>
             {children}
         </MusicContext.Provider>
     );
-}
+};
 
-export function useMusic() {
-    const context = useContext(MusicContext);
-    if (!context) {
-        throw new Error("useMusic must be used within MusicProvider");
-    }
-    return context;
-}
+export const useMusic = () => useContext(MusicContext);

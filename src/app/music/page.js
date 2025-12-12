@@ -4,13 +4,12 @@ import { Search, Loader2 } from "lucide-react";
 import Equalizer from "@/app/components/Equalizer";
 import TrackMenu from "@/app/components/TrackMenu";
 import { useMusic } from "@/app/MusicContext";
-import { parseDuration, formatTime } from '@/app/utils/time';
-import authApi from "@/app/api/auth";
+import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
 
 export default function MusicPage() {
     const [searchQuery, setSearchQuery] = useState("");
-    const { songs, loading, error, playingSongId, isPlaying, currentTime, selectOrToggle, deleteTrack } = useMusic();
+    const { songs, loading, error, playingSongId, isPlaying, currentTime, selectOrToggle } = useMusic();
     const [mounted, setMounted] = useState(false);
 
     const { user } = useUser();
@@ -79,8 +78,9 @@ export default function MusicPage() {
                     ) : (
                         <div className="space-y-1 mx-8">
                             {filteredSongs.map((song) => {
-                                const isSongPlaying = playingSongId === song.id && isPlaying;
+                                // ИСПРАВЛЕНО: проверяем активный трек и статус воспроизведения отдельно
                                 const isActive = playingSongId === song.id;
+                                const isSongPlaying = isActive && isPlaying;
 
                                 return (
                                     <div
@@ -126,7 +126,7 @@ export default function MusicPage() {
                                         <div className="flex items-center gap-3 relative">
                                             <div className="relative w-12 flex justify-end">
                                                 <span className="text-white text-sm group-hover:opacity-0 transition-opacity">
-                                                    {isActive ? formatTime(currentTime) : formatTime(parseDuration(song.duration))}
+                                                    {isActive ? formatSeconds(currentTime) : formatSeconds(song.duration)}
                                                 </span>
                                                 <div
                                                     key={mounted ? "client" : "server"}
@@ -143,7 +143,7 @@ export default function MusicPage() {
                                                             }}
                                                             onDelete={handleDelete}
                                                             onAbout={(s) => {
-                                                                alert(`${s.title} — ${s.artist}\nДлительность: ${s.duration}`);
+                                                                alert(`${s.title} — ${s.artist}\nДлительность: ${formatSeconds(s.duration)}`);
                                                             }}
                                                             isAdmin={user?.is_admin === true}
                                                         />

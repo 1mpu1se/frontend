@@ -3,17 +3,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
 import { useMusic } from "@/app/MusicContext";
+import { formatSeconds } from '@/app/utils/time';
 import "@/app/components/PlayerBar.css";
 
-export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev, onNext }) {
+export default function PlayerBar({ currentSong, isPlaying, onTogglePlay, onPrev, onNext }) {
     const [progress, setProgress] = useState(0);
-    const [volume, setVolume] = useState(80);
-    const prevVolumeRef = useRef(null); // запомнит громкость до выключения
+    const [volume, setVolumeState] = useState(80);
+    const prevVolumeRef = useRef(null);
     const [isMuted, setIsMuted] = useState(false);
-
-    const accMsRef = useRef(0);
     const [isSeeking, setIsSeeking] = useState(false);
-    const { seekTo } = useMusic();
+
+    const { seekTo, setVolume: setAudioVolume, currentTime } = useMusic();
 
     const [repeatState, setRepeatState] = useState(0);
     const [shuffleActive, setShuffleActive] = useState(false);
@@ -27,42 +27,27 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
     };
 
     useEffect(() => {
-        accMsRef.current = 0;
-        setProgress(0);
-    }, [currentSong?.id]);
+        if (setAudioVolume) {
+            setAudioVolume(volume);
+        }
+    }, [volume, setAudioVolume]);
 
     useEffect(() => {
-        if (!currentSong) return;
-        const totalMs = parseDuration(currentSong.duration) * 1000;
-        let intervalId = null;
-        if (isPlaying) {
-            const startTime = Date.now() - accMsRef.current;
-            intervalId = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                const pct = Math.min((elapsed / totalMs) * 100, 100);
-                if (!isSeeking) setProgress(pct);
-                if (pct >= 100) {
-                    accMsRef.current = totalMs;
-                    clearInterval(intervalId);
-                }
-            }, 100);
-        }
-        return () => intervalId && clearInterval(intervalId);
-    }, [isPlaying, currentSong?.id, isSeeking]);
+        if (!currentSong || isSeeking) return;
 
-    const formatCurrent = (durationStr) => {
-        const total = parseDuration(durationStr);
-        const curSec = Math.min(Math.floor((progress / 100) * total), total);
-        const m = Math.floor(curSec / 60);
-        const s = curSec % 60;
-        return `${m}:${twoDigits(s)}`;
-    };
+        const totalSec = currentSong.duration || 0;
+        if (totalSec <= 0) return;
 
-    const formatTotal = (durationStr) => {
-        const total = parseDuration(durationStr);
-        const m = Math.floor(total / 60);
-        const s = total % 60;
-        return `${m}:${twoDigits(s)}`;
+        const pct = (currentTime / totalSec) * 100;
+
+        // Обновляем прогресс только если разница значительная
+        // Это предотвращает "прыгание" ползунка назад
+        setProgress(pct);
+    }, [currentTime, currentSong?.id, isSeeking]);
+
+    const formatTotal = () => {
+        if (!currentSong) return "0:00";
+        return formatSeconds(currentSong.duration);
     };
 
     const repeatIcons = {
@@ -76,15 +61,43 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
         on: 'music/shuffle-on.svg',
     };
 
-    // Переключатель звука (mute / unmute)
     const toggleMute = () => {
         if (!isMuted && volume > 0) {
             prevVolumeRef.current = volume;
-            setVolume(0);
+            setVolumeState(0);
             setIsMuted(true);
         } else {
             const restore = prevVolumeRef.current ?? 80;
-            setVolume(restore);
+            setVolumeState(restore);
+            setIsMuted(false);
+            prevVolumeRef.current = null;
+        }
+    };
+
+    // ИСПРАВЛЕНО: Обработка перемотки
+    const handleSeekChange = (_, val) => {
+        setIsSeeking(true);
+        setProgress(Number(val));
+    };
+
+    const handleSeekCommit = (_, val) => {
+        if (!currentSong) return;
+
+        const totalSec = currentSong.duration || 0;
+        const newSec = (val / 100) * totalSec;
+
+        setProgress(val);
+        expectedTimeRef.current = newSec;
+
+        seekTo(newSec);
+    };
+
+    const handleVolumeChange = (_, val) => {
+        const v = Number(val);
+        setVolumeState(v);
+        if (v === 0) {
+            setIsMuted(true);
+        } else {
             setIsMuted(false);
             prevVolumeRef.current = null;
         }
@@ -102,7 +115,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                             </button>
 
                             <button
-                                onClick={() => onPlayToggle(null)}
+                                onClick={onTogglePlay}
                                 aria-label={isPlaying ? "Pause" : "Play"}
                                 className="icon-btn play-btn"
                             >
@@ -160,18 +173,8 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                         <div className="progress-wrapper">
                             <Slider
                                 value={progress}
-                                onChange={(_, val) => {
-                                    setIsSeeking(true);
-                                    setProgress(Number(val));
-                                }}
-                                onChangeCommitted={(_, val) => {
-                                    if (!currentSong) return setIsSeeking(false);
-                                    const totalMs = parseDuration(currentSong.duration) * 1000;
-                                    const newMs = (val / 100) * totalMs;
-                                    accMsRef.current = newMs;
-                                    seekTo(newMs);
-                                    setIsSeeking(false);
-                                }}
+                                onChange={handleSeekChange}
+                                onChangeCommitted={handleSeekCommit}
                                 min={0}
                                 max={100}
                                 disabled={!currentSong}
@@ -180,7 +183,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
                             />
                             <div className="time-text">
                                 {currentSong
-                                    ? `${formatCurrent(currentSong.duration)} / ${formatTotal(currentSong.duration)}`
+                                    ? `${formatCurrent()} / ${formatTotal()}`
                                     : "—"}
                             </div>
                         </div>
@@ -203,16 +206,7 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
 
                         <Slider
                             value={volume}
-                            onChange={(_, val) => {
-                                const v = Number(val);
-                                setVolume(v);
-                                if (v === 0) {
-                                    setIsMuted(true);
-                                } else {
-                                    setIsMuted(false);
-                                    prevVolumeRef.current = null;
-                                }
-                            }}
+                            onChange={handleVolumeChange}
                             min={0}
                             max={100}
                             aria-label="Volume"
@@ -223,13 +217,4 @@ export default function PlayerBar({ currentSong, isPlaying, onPlayToggle, onPrev
             </div>
         </div>
     );
-}
-
-function parseDuration(str) {
-    if (!str) return 0;
-    const [min, sec] = String(str).split(":").map(Number);
-    return (min || 0) * 60 + (sec || 0);
-}
-function twoDigits(n) {
-    return n.toString().padStart(2, "0");
 }

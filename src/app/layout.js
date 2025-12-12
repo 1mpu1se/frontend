@@ -11,7 +11,7 @@ import "@/app/globals.css";
 import { UserProvider, useUser } from "@/app/UserContext";
 
 function LayoutContent({ children }) {
-    const { playingSongId, currentSong, isPlaying, handlePlayToggle, handlePrev, handleNext } = useMusic();
+    const { playingSongId, currentSong, isPlaying, togglePlay, selectOrToggle: handlePlayToggle, selectPrev: handlePrev, selectNext: handleNext } = useMusic();
     const playerVisible = playingSongId !== null;
 
     const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -164,7 +164,7 @@ function LayoutContent({ children }) {
                 <PlayerBar
                     currentSong={currentSong}
                     isPlaying={isPlaying}
-                    onPlayToggle={handlePlayToggle}
+                    onTogglePlay={togglePlay}
                     onPrev={handlePrev}
                     onNext={handleNext}
                 />
