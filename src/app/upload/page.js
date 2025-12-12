@@ -470,7 +470,7 @@ export default function UploadPage() {
                                     >
                                         Выбрать файл
                                     </label>
-                                    <p className="text-xs text-purple-200 mt-3">mp3, m4a, wav и другие форматы</p>
+                                    <p className="text-xs text-purple-200 mt-3">В формате mp3</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
