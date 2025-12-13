@@ -46,7 +46,6 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, is
                     },
                 }}
             >
-                {/* Пункты, доступные только админам — рендерим по отдельности, без Fragment */}
                 {isAdmin && (
                     <MenuItem onClick={handleAdd}>
                         <ListItemIcon sx={{ minWidth: 36 }}>
@@ -73,7 +72,6 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, is
                     <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
                 )}
 
-                {/* Всегда доступный пункт */}
                 <MenuItem onClick={handleAbout}>
                     <ListItemIcon sx={{ minWidth: 36 }}>
                         <img src="/music/track-menu/info.svg" alt="О треке" className="w-5.5 h-5.5" />

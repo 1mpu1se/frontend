@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { musicApi } from "@/app/api/musicApi";
+import authApi from "@/app/api/auth";
 
 const MusicContext = createContext();
 
@@ -19,6 +20,14 @@ export const MusicProvider = ({ children }) => {
 
     // загрузка треков
     const loadSongs = async () => {
+        const token = authApi.getToken();
+        if (!token) {
+            console.log("Токен отсутствует, пропускаем загрузку треков");
+            setSongs([]);
+            setError(null);
+            return;
+        }
+
         setLoading(true);
         try {
             const data = await musicApi.getTracks();
@@ -42,13 +51,39 @@ export const MusicProvider = ({ children }) => {
         } catch (err) {
             console.error(err);
             setError(err.message || "Ошибка загрузки треков");
+            setSongs([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadSongs();
+        // Загружаем треки при инициализации только если есть токен
+        const token = authApi.getToken();
+        if (token) {
+            loadSongs();
+        }
+
+        // Слушаем событие изменения авторизации
+        const handleAuthChange = (event) => {
+            const user = event.detail;
+            if (user) {
+                // Пользователь авторизовался - загружаем треки
+                loadSongs();
+            } else {
+                // Пользователь вышел - очищаем треки
+                setSongs([]);
+                setCurrentSongId(null);
+                setIsPlaying(false);
+                setCurrentTime(0);
+                setError(null);
+            }
+        };
+
+        window.addEventListener("authChange", handleAuthChange);
+        return () => {
+            window.removeEventListener("authChange", handleAuthChange);
+        };
     }, []);
 
     useEffect(() => {
@@ -189,6 +224,7 @@ export const MusicProvider = ({ children }) => {
             seekTo,
             setVolume,
             deleteTrack,
+            loadSongs,
         }}>
             {children}
         </MusicContext.Provider>

@@ -6,6 +6,7 @@ import TrackMenu from "@/app/components/TrackMenu";
 import { useMusic } from "@/app/MusicContext";
 import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
+import SearchBar from "@/app/components/SearchBar";
 
 export default function MusicPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -37,19 +38,11 @@ export default function MusicPage() {
     return (
         <div>
             {/* Search Bar */}
-            <div className="max-w-4xl mx-auto mb-8 mt-10">
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Поиск музыки"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-2xl text-gray-700 placeholder-gray-400 focus:outline-none"
-                        style={{ backgroundColor: "rgba(255, 255, 255, 0.7)" }}
-                    />
-                </div>
-            </div>
+            <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Поиск музыки"
+            />
 
             {/* Song List */}
             <div className="max-w-7xl mx-auto">

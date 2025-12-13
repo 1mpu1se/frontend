@@ -61,7 +61,7 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
             setUser(currentUser);
 
             onAuth && onAuth(currentUser);
-            onClose();
+            onClose && onClose();
         } catch (err) {
             setError(err?.message || "Ошибка авторизации");
         } finally {
@@ -89,22 +89,27 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
 
     if (!isOpen) return null;
 
+    // Проверяем, является ли это модальным окном (есть функция onClose) или полноценной страницей
+    const isModal = !!onClose && onClose !== (() => {});
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                onClick={onClose}
+                className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${isModal ? 'cursor-pointer' : ''}`}
+                onClick={isModal ? onClose : undefined}
             />
 
             <div className="relative bg-[#826d9d]/95 backdrop-blur-md rounded-3xl shadow-2xl w-full max-w-md p-8 text-white">
 
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-white/70 hover:text-white transition"
-                >
-                    <X size={24} />
-                </button>
+                {isModal && (
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 text-white/70 hover:text-white transition"
+                    >
+                        <X size={24} />
+                    </button>
+                )}
 
                 <div className="flex justify-center mb-6">
                     <Image
