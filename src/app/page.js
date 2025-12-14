@@ -58,6 +58,13 @@ export default function HomePage() {
             setSongs(songsData);
             setError(null);
         } catch (err) {
+            if (err?.code === "NO_TOKEN" || err?.message === "NO_TOKEN") {
+                setArtists([]);
+                setAlbums([]);
+                setSongs([]);
+                setError(null);
+                return;
+            }
             console.error(err);
             setError("Ошибка загрузки данных");
         } finally {
