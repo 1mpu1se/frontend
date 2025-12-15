@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
 import { useMusic } from "@/app/MusicContext";
 import { formatSeconds } from '@/app/utils/time';
-import "@/app/components/PlayerBar.css";
+import "@/components/PlayerBar.css";
 
 export default function PlayerBar({ currentSong, isPlaying, onTogglePlay, onPrev, onNext }) {
     const [progress, setProgress] = useState(0);

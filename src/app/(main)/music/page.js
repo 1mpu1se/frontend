@@ -1,12 +1,12 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Search, Loader2 } from "lucide-react";
-import Equalizer from "@/app/components/Equalizer";
-import TrackMenu from "@/app/components/TrackMenu";
+import { Loader2 } from "lucide-react";
+import Equalizer from "@/components/Equalizer";
+import TrackMenu from "@/components/TrackMenu";
 import { useMusic } from "@/app/MusicContext";
 import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
-import SearchBar from "@/app/components/SearchBar";
+import SearchBar from "@/components/SearchBar";
 
 export default function MusicPage() {
     const [searchQuery, setSearchQuery] = useState("");

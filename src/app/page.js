@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import SearchBar from "@/app/components/SearchBar";
-import ArtistCard from "@/app/components/ArtistCard";
-import AlbumCard from "@/app/components/AlbumCard";
-import TrackItem from "@/app/components/TrackItem";
+import SearchBar from "@/components/SearchBar";
+import ArtistCard from "@/components/ArtistCard";
+import AlbumCard from "@/components/AlbumCard";
+import TrackItem from "@/components/TrackItem";
 import { musicApi } from "@/app/api/musicApi";
 import { useRouter } from "next/navigation";
 

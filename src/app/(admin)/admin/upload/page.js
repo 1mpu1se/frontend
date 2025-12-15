@@ -4,10 +4,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { useUser } from "@/app/UserContext";
 import authApi from "@/app/api/auth";
 import { BACKEND_URL } from "@/config/api";
-import { Music, Image as ImageIcon, Check, X, Loader2, User } from "lucide-react";
+import { Music, Check, X } from "lucide-react";
 import { withRequireAdmin } from "@/app/hoc/withAuth";
 
-// Все ваши вспомогательные функции остаются без изменений
 function humanFileSize(bytes) {
     if (!bytes) return "0 B";
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -58,8 +57,6 @@ function uploadFileWithProgress(url, file, onProgress) {
 function UploadPage() {
     const { user, refreshUser } = useUser();
     const tokenQuery = authApi.authQuery();
-
-    // Убираем проверки hydrated и forbidden - HOC это делает за нас!
 
     // audio upload state
     const [audioFile, setAudioFile] = useState(null);

@@ -11,6 +11,7 @@ function getToken() {
     }
     return null;
 }
+
 function appendTokenToPath(path) {
     const t = getToken();
     if (!t) return path;
@@ -22,33 +23,8 @@ function handleJsonResponse(res) {
     return res.json();
 }
 
-async function postJson(path, body) {
+async function getJson(path) {
     const url = appendTokenToPath(`${BACKEND_URL}${path}`);
-    const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
-    return handleJsonResponse(res);
-}
-
-export async function deleteSong(songId) {
-    const url = appendTokenToPath(`${BACKEND_URL}/admin/songs/${encodeURIComponent(songId)}`);
-    const res = await fetch(url, {
-        method: "DELETE",
-    });
-    return handleJsonResponse(res);
-}
-
-export async function getIndex() {
-    // Предотвращаем запрос к бэку, если токена нет
-    if (!getToken()) {
-        const err = new Error("NO_TOKEN");
-        err.code = "NO_TOKEN";
-        return Promise.reject(err);
-    }
-
-    const url = appendTokenToPath(`${BACKEND_URL}/user/`);
     const res = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
@@ -56,9 +32,40 @@ export async function getIndex() {
     return handleJsonResponse(res);
 }
 
+export async function deleteSong(songId) {
+    const url = appendTokenToPath(`${BACKEND_URL}/admin/songs/${encodeURIComponent(songId)}`);
+    const res = await fetch(url, { method: "DELETE" });
+    return handleJsonResponse(res);
+}
+
+export async function getIndex() {
+    if (!getToken()) {
+        const err = new Error("NO_TOKEN");
+        err.code = "NO_TOKEN";
+        return Promise.reject(err);
+    }
+    return getJson("/user/");
+}
+
 export function getAssetUrl(assetId) {
     if (!assetId) return null;
     return appendTokenToPath(`${BACKEND_URL}/user/asset/${encodeURIComponent(assetId)}`);
+}
+
+export async function getArtist(artistId) {
+    return getJson(`/user/artist/${artistId}`);
+}
+
+export async function getArtistAlbums(artistId, page = 1) {
+    return getJson(`/user/artist/${artistId}/albums?page=${page}`);
+}
+
+export async function getAlbum(albumId) {
+    return getJson(`/user/album/${albumId}`);
+}
+
+export async function getAlbumSongs(albumId, page = 1) {
+    return getJson(`/user/album/${albumId}/songs?page=${page}`);
 }
 
 export async function getTracksMapped() {
@@ -67,13 +74,11 @@ export async function getTracksMapped() {
         idx = await getIndex();
     } catch (err) {
         if (err && (err.code === "NO_TOKEN" || err.message === "NO_TOKEN")) {
-            console.info("getTracksMapped: no auth token — skipping tracks load");
+            console.info("getTracksMapped: no auth token – skipping tracks load");
             return [];
         }
         throw err;
     }
-
-    console.log('Songs from server:', idx.songs);
 
     const artists = idx?.artists ?? [];
     const albums = idx?.albums ?? [];
@@ -108,4 +113,8 @@ export const musicApi = {
     getAudioUrl: getAssetUrl,
     deleteTrack: deleteSong,
     getIndex,
+    getArtist,
+    getArtistAlbums,
+    getAlbum,
+    getAlbumSongs,
 };

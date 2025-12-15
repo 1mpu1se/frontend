@@ -5,8 +5,8 @@ import Image from "next/image";
 import { Menu, User, LogOut, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MusicProvider, useMusic } from "@/app/MusicContext";
-import PlayerBar from "@/app/components/PlayerBar";
-import AuthModal from "@/app/components/AuthModal";
+import PlayerBar from "@/components/PlayerBar";
+import AuthModal from "@/components/AuthModal";
 import "@/app/globals.css";
 import { UserProvider, useUser } from "@/app/UserContext";
 
@@ -177,7 +177,7 @@ function LayoutContent({ children }) {
             <header className="relative z-10 bg-[#826d9d]/80 backdrop-blur-sm text-white">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8" style={{ paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
                     <div className="flex items-center justify-between py-2">
-                        <Link href="/" className="flex items-center gap-2">
+                        <Link href="/public" className="flex items-center gap-2">
                             <Image
                                 src="/logo-mobile.svg"
                                 alt="impulS mobile logo"

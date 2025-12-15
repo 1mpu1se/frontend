@@ -52,7 +52,6 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
                 });
             }
 
-            // получаем актуальные данные пользователя (включая is_admin) по токену
             const currentUser = await authApi.whoAmI();
             if (!currentUser) {
                 throw new Error("Не удалось получить данные пользователя");
@@ -89,12 +88,10 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
 
     if (!isOpen) return null;
 
-    // Проверяем, является ли это модальным окном (есть функция onClose) или полноценной страницей
     const isModal = !!onClose && onClose !== (() => {});
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
             <div
                 className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${isModal ? 'cursor-pointer' : ''}`}
                 onClick={isModal ? onClose : undefined}
