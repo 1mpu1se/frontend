@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useUser } from "@/app/UserContext";
 import { musicApi } from "@/app/api/musicApi";
-import { Loader2, Users, Music, Album, Plus, Edit, Trash2, X, Check, Upload } from "lucide-react";
+import { Loader2, Users, Music, Album, Plus, Edit, Trash2, X, Check, Upload, Eye, EyeOff } from "lucide-react";
 
 const TABS = [
     { id: "users", label: "Пользователи", icon: Users },
@@ -27,6 +27,8 @@ export default function AdminManagePage() {
     const [coverAsset, setCoverAsset] = useState(null);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [formErrors, setFormErrors] = useState({});
+    const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -76,28 +78,74 @@ export default function AdminManagePage() {
         }
     }, [success, error]);
 
-
     const openCreateModal = () => {
         setEditingItem(null);
         setFormState({});
         setCoverFile(null);
         setCoverAsset(null);
         setCoverProgress(0);
+        setFormErrors({});
+        setShowPassword(false);
         setModalOpen(true);
     };
 
     const openEditModal = (item) => {
         setEditingItem(item);
-        setFormState({ ...item });
+        setFormState({ ...item, password: "" });
         setCoverAsset(item.asset_id ? { asset_id: item.asset_id } : null);
         setCoverFile(null);
         setCoverProgress(0);
+        setFormErrors({});
+        setShowPassword(false);
         setModalOpen(true);
+    };
+
+    const validateField = (name, value) => {
+        let msg = "";
+        if (name === "username") {
+            if (!value || value.trim().length < 4) msg = "Логин должен содержать минимум 4 символа";
+        }
+        if (name === "password") {
+            if (!editingItem) {
+                if (!value || value.length < 8) msg = "Пароль должен содержать минимум 8 символов";
+            } else {
+                if (value && value.length > 0 && value.length < 8) msg = "Пароль должен содержать минимум 8 символов";
+            }
+        }
+        if (name === "biography") {
+            if (!value || value.trim().length < 8) msg = "Биография должна содержать минимум 8 символов";
+        }
+        setFormErrors((s) => ({ ...s, [name]: msg }));
+        return msg === "";
+    };
+
+    const handleChange = (key, value) => {
+        setFormState((s) => ({ ...s, [key]: value }));
+        if (key === "username" || key === "password" || key === "biography") {
+            validateField(key, value);
+        }
     };
 
     const handleSubmit = async () => {
         setError("");
         setSuccess("");
+
+        const errors = {};
+
+        if (activeTab === "users") {
+            if (!validateField("username", formState.username)) errors.username = true;
+            if (!validateField("password", formState.password || "")) errors.password = true;
+        }
+
+        if (activeTab === "artists") {
+            if (!validateField("biography", formState.biography || "")) errors.biography = true;
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setError("Пожалуйста, исправьте ошибки в форме");
+            return;
+        }
+
         try {
             if (activeTab === "users") {
                 const body = {
@@ -220,16 +268,12 @@ export default function AdminManagePage() {
 
             {/* Сообщения */}
             {(error || success) && (
-                <div className={`mb-6 transition-opacity duration-500 ${showMessage ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`mb-6 transition-opacity duration-500 ${showMessage ? "opacity-100" : "opacity-0"}`}>
                     {error && (
-                        <div className="p-4 bg-red-500/20 border border-red-500/30 text-red-200 rounded-lg">
-                            {error}
-                        </div>
+                        <div className="p-4 bg-red-500/20 border border-red-500/30 text-red-200 rounded-lg">{error}</div>
                     )}
                     {success && (
-                        <div className="p-4 bg-green-500/20 border border-green-500/30 text-green-200 rounded-lg">
-                            {success}
-                        </div>
+                        <div className="p-4 bg-green-500/20 border border-green-500/30 text-green-200 rounded-lg">{success}</div>
                     )}
                 </div>
             )}
@@ -247,9 +291,7 @@ export default function AdminManagePage() {
                             <thead>
                             <tr className="text-left border-b border-white/50">
                                 <th className="py-3 px-4">ID</th>
-                                <th className="py-3 px-4">
-                                    {activeTab === "users" ? "Имя пользователя" : "Название"}
-                                </th>
+                                <th className="py-3 px-4">{activeTab === "users" ? "Имя пользователя" : "Название"}</th>
                                 {activeTab === "users" && <th className="py-3 px-4">Админ</th>}
                                 {activeTab === "artists" && <th className="py-3 px-4">Биография</th>}
                                 {activeTab === "albums" && <th className="py-3 px-4">Исполнитель</th>}
@@ -265,40 +307,27 @@ export default function AdminManagePage() {
                                 </tr>
                             ) : (
                                 data.map((item) => (
-                                    <tr key={item.user_id || item.artist_id || item.album_id} className="border-b border-white/5 hover:bg-white/5">
-                                        <td className="py-4 px-4 text-white">
-                                            {item.user_id || item.artist_id || item.album_id}
-                                        </td>
-                                        <td className="py-4 px-4 font-medium">
-                                            {item.username || item.name}
-                                        </td>
-                                        {activeTab === "users" && (
-                                            <td className="py-4 px-4">
-                                                {item.is_admin ? "Да" : "Нет"}
-                                            </td>
-                                        )}
+                                    <tr
+                                        key={item.user_id || item.artist_id || item.album_id}
+                                        className="border-b border-white/5 hover:bg-white/5"
+                                    >
+                                        <td className="py-4 px-4 text-white">{item.user_id || item.artist_id || item.album_id}</td>
+                                        <td className="py-4 px-4 font-medium">{item.username || item.name}</td>
+                                        {activeTab === "users" && <td className="py-4 px-4">{item.is_admin ? "Да" : "Нет"}</td>}
                                         {activeTab === "artists" && (
-                                            <td className="py-4 px-4 text-white max-w-md truncate">
-                                                {item.biography || "—"}
-                                            </td>
+                                            <td className="py-4 px-4 text-white max-w-md truncate">{item.biography || "—"}</td>
                                         )}
                                         {activeTab === "albums" && (
                                             <td className="py-4 px-4 text-white/70">
-                                                {artists.find(a => a.artist_id === item.artist_id)?.name || "ID " + item.artist_id}
+                                                {artists.find((a) => a.artist_id === item.artist_id)?.name || "ID " + item.artist_id}
                                             </td>
                                         )}
                                         <td className="py-4 px-4 text-center">
                                             <div className="flex items-center justify-center gap-3">
-                                                <button
-                                                    onClick={() => openEditModal(item)}
-                                                    className="p-2 rounded-full hover:bg-white/10 transition"
-                                                >
+                                                <button onClick={() => openEditModal(item)} className="p-2 rounded-full hover:bg-white/10 transition">
                                                     <Edit size={18} />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(item)}
-                                                    className="p-2 rounded-full hover:bg-red-500/20 transition text-red-300"
-                                                >
+                                                <button onClick={() => handleDelete(item)} className="p-2 rounded-full hover:bg-red-500/20 transition text-red-300">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>
@@ -339,22 +368,32 @@ export default function AdminManagePage() {
                                         <label className="block text-sm font-medium mb-2">Имя пользователя</label>
                                         <input
                                             value={formState.username || ""}
-                                            onChange={(e) => setFormState({ ...formState, username: e.target.value })}
+                                            onChange={(e) => handleChange("username", e.target.value)}
                                             className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 focus:border-white/40 focus:outline-none transition"
                                             placeholder="username"
                                         />
+                                        {formErrors.username && <div className="mt-1 text-sm text-red-300">{formErrors.username}</div>}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">
-                                            Пароль {editingItem && "(оставьте пустым, чтобы не менять)"}
-                                        </label>
-                                        <input
-                                            type="password"
-                                            value={formState.password || ""}
-                                            onChange={(e) => setFormState({ ...formState, password: e.target.value })}
-                                            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 focus:border-white/40 focus:outline-none transition"
-                                        />
+                                        <label className="block text-sm font-medium mb-2">Пароль {editingItem && "(оставьте пустым, чтобы не менять)"}</label>
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                value={formState.password || ""}
+                                                onChange={(e) => handleChange("password", e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 focus:border-white/40 focus:outline-none transition pr-12"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword((s) => !s)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                                                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                        {formErrors.password && <div className="mt-1 text-sm text-red-300">{formErrors.password}</div>}
                                     </div>
 
                                     <div className="flex items-center gap-3">
@@ -389,10 +428,11 @@ export default function AdminManagePage() {
                                             <label className="block text-sm font-medium mb-2">Биография</label>
                                             <textarea
                                                 value={formState.biography || ""}
-                                                onChange={(e) => setFormState({ ...formState, biography: e.target.value })}
+                                                onChange={(e) => handleChange("biography", e.target.value)}
                                                 rows={4}
                                                 className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 focus:border-white/40 focus:outline-none transition"
                                             />
+                                            {formErrors.biography && <div className="mt-1 text-sm text-red-300">{formErrors.biography}</div>}
                                         </div>
                                     )}
 
@@ -418,13 +458,16 @@ export default function AdminManagePage() {
                                         <label className="block text-sm font-medium mb-2">Обложка</label>
 
                                         {coverUrl && (
-                                            <div className="mb-3">
+                                            <div className="mb-3 relative inline-block">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={coverUrl}
-                                                    alt="preview"
-                                                    className="w-32 h-32 object-cover rounded-lg"
-                                                />
+                                                <img src={coverUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg" />
+                                                <button
+                                                    type="button"
+                                                    className="absolute -top-2 -right-2 bg-black/60 rounded-full p-1 hover:bg-black/80 transition"
+                                                    aria-label="Удалить изображение"
+                                                >
+                                                    <X size={14} />
+                                                </button>
                                             </div>
                                         )}
 
@@ -444,10 +487,7 @@ export default function AdminManagePage() {
                                                 <div className="text-sm mb-1">{coverFile.name}</div>
                                                 {coverProgress > 0 && coverProgress < 100 && (
                                                     <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-                                                        <div
-                                                            style={{ width: `${coverProgress}%` }}
-                                                            className="h-full bg-purple-300 transition-all"
-                                                        />
+                                                        <div style={{ width: `${coverProgress}%` }} className="h-full bg-purple-300 transition-all" />
                                                     </div>
                                                 )}
                                                 {coverProgress === 100 && (
@@ -462,16 +502,10 @@ export default function AdminManagePage() {
                             )}
 
                             <div className="flex justify-end gap-3 pt-4">
-                                <button
-                                    onClick={() => setModalOpen(false)}
-                                    className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 transition"
-                                >
+                                <button onClick={() => setModalOpen(false)} className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 transition">
                                     Отмена
                                 </button>
-                                <button
-                                    onClick={handleSubmit}
-                                    className="px-6 py-3 rounded-full bg-white text-purple-700 font-semibold hover:scale-105 transition"
-                                >
+                                <button onClick={handleSubmit} className="px-6 py-3 rounded-full bg-white text-purple-700 font-semibold hover:scale-105 transition">
                                     {editingItem ? "Сохранить" : "Создать"}
                                 </button>
                             </div>

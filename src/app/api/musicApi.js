@@ -110,7 +110,9 @@ export function uploadAssetWithProgress(file, onProgress, ensure_type = "image/p
         const fd = new FormData();
         fd.append("file", file);
 
-        const tokenQ = authApi.authQuery();
+        const token = getToken();
+        const tokenQ = token ? `?token=${encodeURIComponent(token)}` : "";
+
         const sep = tokenQ ? "&" : "?";
         const url = `${BACKEND_URL}/admin/upload${tokenQ}${sep}ensure_type=${encodeURIComponent(ensure_type)}`;
 
