@@ -1,11 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import authApi from "@/app/api/auth";
+import React, { createContext, useContext, useEffect, useRef, useState, useMemo } from "react";
+import authApi from "@/app/api/authApi";
 
 const UserContext = createContext({
     user: null,
     hydrated: false,
+    checked: false,
     setUser: () => {},
     refreshUser: async () => {},
     logout: async () => {},
@@ -14,53 +15,85 @@ const UserContext = createContext({
 export const useUser = () => useContext(UserContext);
 
 export function UserProvider({ children }) {
+    const isMountedRef = useRef(true);
+    const ongoingRef = useRef(null);
     const [user, setUserState] = useState(null);
     const [hydrated, setHydrated] = useState(false);
+    const [checked, setChecked] = useState(false);
 
     const setUser = (u) => {
-        setUserState(u);
-        if (u) authApi.setUser(u);
-        else authApi.clearUser();
+        if (u) {
+            authApi.setUser(u);
+        } else {
+            authApi.clearUser();
+        }
+
+        if (isMountedRef.current) {
+            setUserState(u);
+        }
     };
 
     const refreshUser = async () => {
-        const u = await authApi.whoAmI();
-        if (u) setUserState(u);
-        return u;
+        if (ongoingRef.current) return ongoingRef.current;
+
+        const p = (async () => {
+            try {
+                const u = await authApi.whoAmI();
+                setUser(u || null);
+                return u || null;
+            } catch (err) {
+                console.warn("refreshUser error", err);
+                setUser(null);
+                return null;
+            } finally {
+                ongoingRef.current = null;
+            }
+        })();
+
+        ongoingRef.current = p;
+        return p;
     };
 
     const logout = async () => {
-        await authApi.logout();
-        setUserState(null);
-        setHydrated(true);
+        try {
+            await authApi.logout();
+        } catch (err) {
+            console.warn("logout error", err);
+        } finally {
+            setUser(null);
+            if (isMountedRef.current) {
+                setChecked(true);
+            }
+        }
     };
 
     useEffect(() => {
         let mounted = true;
+        setHydrated(true);
 
         (async () => {
             try {
-                const local = authApi.getUser();
-                if (mounted && local) {
-                    setUserState(local);
-                }
-
-                const u = await authApi.whoAmI();
-                if (mounted && u) {
-                    setUserState(u);
-                }
-            } catch (err) {
-                console.warn("UserProvider init error:", err);
+                if (!mounted) return;
+                await refreshUser();
             } finally {
-                if (mounted) setHydrated(true);
+                if (mounted) setChecked(true);
             }
         })();
 
         return () => { mounted = false; };
     }, []);
 
+    const value = useMemo(() => ({
+        user,
+        hydrated,
+        checked,
+        setUser,
+        refreshUser,
+        logout
+    }), [user, hydrated, checked]);
+
     return (
-        <UserContext.Provider value={{ user, hydrated, setUser, refreshUser, logout }}>
+        <UserContext.Provider value={value}>
             {children}
         </UserContext.Provider>
     );

@@ -2,10 +2,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useUser } from "@/app/UserContext";
-import authApi from "@/app/api/auth";
+import authApi from "@/app/api/authApi";
 import { BACKEND_URL } from "@/config/api";
 import { Music, Check, X } from "lucide-react";
-import { withRequireAdmin } from "@/app/hoc/withAuth";
 
 function humanFileSize(bytes) {
     if (!bytes) return "0 B";
@@ -92,14 +91,11 @@ function UploadPage() {
     const [newArtistBio, setNewArtistBio] = useState("");
     const [createArtistLoading, setCreateArtistLoading] = useState(false);
 
-    // song create
     const [creatingSong, setCreatingSong] = useState(false);
 
-    // UI messages
     const [error, setError] = useState(null);
     const [successMsg, setSuccessMsg] = useState(null);
 
-    // refs for drag/drop
     const dropRef = useRef();
 
     useEffect(() => {
@@ -341,7 +337,6 @@ function UploadPage() {
         }
     };
 
-    // drag & drop handlers
     useEffect(() => {
         const el = dropRef.current;
         if (!el) return;
@@ -511,4 +506,4 @@ function UploadPage() {
     );
 }
 
-export default withRequireAdmin(UploadPage);
+export default UploadPage;

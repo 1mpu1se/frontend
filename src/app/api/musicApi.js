@@ -1,4 +1,4 @@
-import authApi from "@/app/api/auth";
+import authApi from "@/app/api/authApi";
 import { BACKEND_URL } from "@/config/api";
 
 function getToken() {
@@ -32,10 +32,113 @@ async function getJson(path) {
     return handleJsonResponse(res);
 }
 
-export async function deleteSong(songId) {
-    const url = appendTokenToPath(`${BACKEND_URL}/admin/songs/${encodeURIComponent(songId)}`);
+async function postJson(path, body) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return handleJsonResponse(res);
+}
+
+async function putJson(path, body) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
+    const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return handleJsonResponse(res);
+}
+
+async function deleteJson(path) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
     const res = await fetch(url, { method: "DELETE" });
     return handleJsonResponse(res);
+}
+
+export async function adminGetUsers(page = 1) {
+    return getJson(`/admin/users?page=${page}`);
+}
+export async function adminGetArtists(page = 1) {
+    return getJson(`/admin/artists?page=${page}`);
+}
+export async function adminGetAlbums(page = 1) {
+    return getJson(`/admin/albums?page=${page}`);
+}
+
+/* Users */
+export async function adminCreateUser(body) {
+    return postJson(`/admin/users`, body);
+}
+export async function adminUpdateUser(userId, body) {
+    return putJson(`/admin/users/${encodeURIComponent(userId)}`, body);
+}
+export async function adminDeleteUser(userId) {
+    return deleteJson(`/admin/users/${encodeURIComponent(userId)}`);
+}
+
+export async function adminCreateArtist(body) {
+    return postJson(`/admin/artists`, body);
+}
+export async function adminUpdateArtist(artistId, body) {
+    return putJson(`/admin/artists/${encodeURIComponent(artistId)}`, body);
+}
+export async function adminDeleteArtist(artistId) {
+    return deleteJson(`/admin/artists/${encodeURIComponent(artistId)}`);
+}
+
+/* Albums */
+export async function adminCreateAlbum(body) {
+    return postJson(`/admin/albums`, body);
+}
+export async function adminUpdateAlbum(albumId, body) {
+    return putJson(`/admin/albums/${encodeURIComponent(albumId)}`, body);
+}
+export async function adminDeleteAlbum(albumId) {
+    return deleteJson(`/admin/albums/${encodeURIComponent(albumId)}`);
+}
+
+export function getAssetUrl(assetId) {
+    if (!assetId) return null;
+    return appendTokenToPath(`${BACKEND_URL}/user/asset/${encodeURIComponent(assetId)}`);
+}
+
+export function uploadAssetWithProgress(file, onProgress, ensure_type = "image/png") {
+    return new Promise((resolve, reject) => {
+        const fd = new FormData();
+        fd.append("file", file);
+
+        const tokenQ = authApi.authQuery();
+        const sep = tokenQ ? "&" : "?";
+        const url = `${BACKEND_URL}/admin/upload${tokenQ}${sep}ensure_type=${encodeURIComponent(ensure_type)}`;
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable && onProgress) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data.asset);
+                } catch (err) {
+                    reject(new Error("Ошибка парсинга ответа"));
+                }
+            } else {
+                reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
+            }
+        };
+
+        xhr.onerror = () => reject(new Error("Сетевая ошибка"));
+        xhr.send(fd);
+    });
 }
 
 export async function getIndex() {
@@ -47,10 +150,6 @@ export async function getIndex() {
     return getJson("/user/");
 }
 
-export function getAssetUrl(assetId) {
-    if (!assetId) return null;
-    return appendTokenToPath(`${BACKEND_URL}/user/asset/${encodeURIComponent(assetId)}`);
-}
 
 export async function getArtist(artistId) {
     return getJson(`/user/artist/${artistId}`);
@@ -109,12 +208,25 @@ export async function getTracksMapped() {
 }
 
 export const musicApi = {
-    getTracks: getTracksMapped,
-    getAudioUrl: getAssetUrl,
-    deleteTrack: deleteSong,
+    adminGetUsers,
+    adminGetArtists,
+    adminGetAlbums,
+    adminCreateUser,
+    adminUpdateUser,
+    adminDeleteUser,
+    adminCreateArtist,
+    adminUpdateArtist,
+    adminDeleteArtist,
+    adminCreateAlbum,
+    adminUpdateAlbum,
+    adminDeleteAlbum,
+    uploadAssetWithProgress,
+    getAssetUrl,
     getIndex,
     getArtist,
     getArtistAlbums,
     getAlbum,
     getAlbumSongs,
+    getTracks: getTracksMapped,
+    getAudioUrl: getAssetUrl,
 };

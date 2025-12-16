@@ -14,16 +14,7 @@ function LayoutContent({ children }) {
     const { playingSongId, currentSong, isPlaying, togglePlay, selectOrToggle: handlePlayToggle, selectPrev: handlePrev, selectNext: handleNext } = useMusic();
     const playerVisible = playingSongId !== null;
 
-    const { user, hydrated, setUser, logout } = useUser();
-
-    // Показываем форму авторизации, если пользователь не авторизован
-    const [showAuthPage, setShowAuthPage] = useState(false);
-
-    useEffect(() => {
-        if (hydrated) {
-            setShowAuthPage(!user);
-        }
-    }, [hydrated, user]);
+    const { user, hydrated, checked, setUser, logout } = useUser();
 
     useEffect(() => {
         let rafId = null;
@@ -55,12 +46,10 @@ function LayoutContent({ children }) {
 
     const handleAuth = (userData) => {
         setUser(userData);
-        setShowAuthPage(false);
     };
 
     const handleLogout = async () => {
         await logout();
-        setShowAuthPage(true);
     };
 
     // Показываем загрузчик пока идет гидратация
@@ -99,6 +88,8 @@ function LayoutContent({ children }) {
             </div>
         );
     }
+
+    const showAuthPage = checked && !user;
 
     // Показываем страницу авторизации, если пользователь не авторизован
     if (showAuthPage) {
@@ -177,7 +168,7 @@ function LayoutContent({ children }) {
             <header className="relative z-10 bg-[#826d9d]/80 backdrop-blur-sm text-white">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8" style={{ paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
                     <div className="flex items-center justify-between py-2">
-                        <Link href="/public" className="flex items-center gap-2">
+                        <Link href="/" className="flex items-center gap-2">
                             <Image
                                 src="/logo-mobile.svg"
                                 alt="impulS mobile logo"
@@ -200,7 +191,10 @@ function LayoutContent({ children }) {
                             <Link href="/music" className="px-4 py-2 rounded-full hover:bg-white/10 transition">музыка</Link>
                             <Link href="/playlists" className="px-4 py-2 rounded-full hover:bg-white/10 transition">плейлисты</Link>
                             {user && user.is_admin && (
-                                <Link href="/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">загрузка</Link>
+                                <>
+                                    <Link href="/admin/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">загрузка</Link>
+                                    <Link href="/admin/manage" className="px-4 py-2 rounded-full hover:bg-white/10 transition">админ-панель</Link>
+                                </>
                             )}
                         </nav>
 
@@ -220,10 +214,6 @@ function LayoutContent({ children }) {
                                     </button>
                                 </div>
                             )}
-
-                            <button className="text-white hover:text-yellow-100 transition p-2">
-                                <Menu size={24} />
-                            </button>
                         </div>
                     </div>
                 </div>

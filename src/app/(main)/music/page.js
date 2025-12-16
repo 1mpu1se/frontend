@@ -71,7 +71,6 @@ export default function MusicPage() {
                     ) : (
                         <div className="space-y-1 mx-8">
                             {filteredSongs.map((song) => {
-                                // ИСПРАВЛЕНО: проверяем активный трек и статус воспроизведения отдельно
                                 const isActive = playingSongId === song.id;
                                 const isSongPlaying = isActive && isPlaying;
 

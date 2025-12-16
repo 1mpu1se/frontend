@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { musicApi } from "@/app/api/musicApi";
-import authApi from "@/app/api/auth";
+import authApi from "@/app/api/authApi";
 
 const MusicContext = createContext();
 

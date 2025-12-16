@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, User, Lock } from "lucide-react";
 import Image from "next/image";
-import authApi from "@/app/api/auth";
+import authApi from "@/app/api/authApi";
 import { useUser } from "@/app/UserContext";
 
 export default function AuthModal({ isOpen, onClose, onAuth }) {
