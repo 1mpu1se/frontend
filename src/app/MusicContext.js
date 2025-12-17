@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { musicApi } from "@/app/api/musicApi";
 import authApi from "@/app/api/authApi";
+import {useUser} from "@/app/UserContext";
 
 const MusicContext = createContext();
 
@@ -17,6 +18,14 @@ export const MusicProvider = ({ children }) => {
     const currentSong = songs.find(s => s.id === currentSongId) || null;
 
     const playingSongId = currentSongId;
+
+    const { checked } = useUser();
+
+    useEffect(() => {
+        // не стартуем загрузку треков, пока не завершилась проверка whoAmI()
+        if (!checked) return;
+        loadSongs();
+    }, [checked]);
 
     // загрузка треков
     const loadSongs = async () => {
@@ -34,7 +43,9 @@ export const MusicProvider = ({ children }) => {
             console.log("Songs from server:", data);
 
             const songsWithDuration = await Promise.all(
-                data.map(song => new Promise(resolve => {
+                (data || []).map(song => new Promise(resolve => {
+                    if (!song.audioUrl) return resolve({ ...song, duration: 0 });
+
                     const audio = new Audio();
                     audio.src = song.audioUrl;
                     audio.onloadedmetadata = () => {
@@ -43,13 +54,28 @@ export const MusicProvider = ({ children }) => {
                     audio.onerror = () => {
                         resolve({ ...song, duration: 0 });
                     };
+                    setTimeout(() => resolve({ ...song, duration: 0 }), 5000);
                 }))
             );
 
             setSongs(songsWithDuration);
             setError(null);
         } catch (err) {
-            console.error(err);
+            const isNoToken =
+                err &&
+                (err.code === "NO_TOKEN" ||
+                    err.status === 401 ||
+                    err.status === 403 ||
+                    (err.data && (err.data.detail === "Unauthorized" || err.data.message === "Unauthorized")));
+
+            if (isNoToken) {
+                try { authApi.clearToken(); authApi.clearUser(); } catch (e) {}
+                setSongs([]);
+                setError(null);
+                setLoading(false);
+                return;
+            }
+            console.error("Ошибка загрузки треков:", err.message || err);
             setError(err.message || "Ошибка загрузки треков");
             setSongs([]);
         } finally {

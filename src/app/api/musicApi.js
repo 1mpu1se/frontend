@@ -18,10 +18,35 @@ function appendTokenToPath(path) {
     return path.includes("?") ? `${path}&token=${encodeURIComponent(t)}` : `${path}?token=${encodeURIComponent(t)}`;
 }
 
-function handleJsonResponse(res) {
-    if (!res.ok) return res.text().then(t => { throw new Error(t || res.statusText || `HTTP ${res.status}`); });
-    return res.json();
+async function handleJsonResponse(res) {
+    const text = await res.text();
+    let data;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch {
+        data = text;
+    }
+
+    if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+            try { authApi.clearToken(); authApi.clearUser(); } catch (e) {}
+            const err = new Error("NO_TOKEN");
+            err.code = "NO_TOKEN";
+            err.status = res.status;
+            err.data = data;
+            throw err;
+        }
+
+        const msg = (data && (data.detail || data.message || data.error)) || res.statusText || `HTTP ${res.status}`;
+        const err = new Error(msg);
+        err.status = res.status;
+        err.data = data;
+        throw err;
+    }
+
+    return data;
 }
+
 
 async function getJson(path) {
     const url = appendTokenToPath(`${BACKEND_URL}${path}`);
@@ -90,6 +115,10 @@ export async function adminDeleteArtist(artistId) {
 }
 
 /* Albums */
+
+export async function adminGetArtistAlbums(artistId, page = 1) {
+    return getJson(`/admin/artists/${encodeURIComponent(artistId)}/albums?page=${page}`);
+}
 export async function adminCreateAlbum(body) {
     return postJson(`/admin/albums`, body);
 }
@@ -149,7 +178,20 @@ export async function getIndex() {
         err.code = "NO_TOKEN";
         return Promise.reject(err);
     }
-    return getJson("/user/");
+    try {
+        return await getJson("/user/");
+    } catch (err) {
+        if (err && (err.code === "NO_TOKEN" || err.status === 401 || err.status === 403)) {
+            const e = new Error("NO_TOKEN");
+            e.code = "NO_TOKEN";
+            return Promise.reject(e);
+        }
+        throw err;
+    }
+}
+
+export async function adminCreateSong(body) {
+    return postJson(`/admin/songs`, body);
 }
 
 
@@ -212,13 +254,14 @@ export async function getTracksMapped() {
 export const musicApi = {
     adminGetUsers,
     adminGetArtists,
-    adminGetAlbums,
     adminCreateUser,
+    adminCreateSong,
     adminUpdateUser,
     adminDeleteUser,
     adminCreateArtist,
     adminUpdateArtist,
     adminDeleteArtist,
+    adminGetArtistAlbums,
     adminCreateAlbum,
     adminUpdateAlbum,
     adminDeleteAlbum,
