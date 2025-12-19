@@ -2,10 +2,10 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useUser } from "@/app/UserContext";
-import authApi from "@/app/api/auth";
+import authApi from "@/app/api/authApi";
+import { musicApi } from "@/app/api/musicApi";
 import { BACKEND_URL } from "@/config/api";
-import { Music, Image as ImageIcon, Check, X, Loader2, User } from "lucide-react";
-
+import { Music, Image as ImageIcon, Check, X, Loader2 } from "lucide-react";
 
 function humanFileSize(bytes) {
     if (!bytes) return "0 B";
@@ -13,100 +13,43 @@ function humanFileSize(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(1) + " " + ["B", "KB", "MB", "GB"][i];
 }
 
-async function fetchJson(url, opts = {}) {
-    const res = await fetch(url, opts);
+async function fetchJsonWithAuth(url, opts = {}) {
+    const token = authApi.getToken();
+    const headers = { ...(opts.headers || {}) };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(url, { ...opts, headers });
     if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt || res.statusText);
     }
-    return res.json();
-}
-
-function uploadFileWithProgress(url, file, onProgress) {
-    return new Promise((resolve, reject) => {
-        const fd = new FormData();
-        fd.append("file", file);
-
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", url, true);
-
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable && onProgress) {
-                onProgress(Math.round((e.loaded / e.total) * 100));
-            }
-        };
-
-        xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const data = JSON.parse(xhr.responseText || "{}");
-                    resolve(data);
-                } catch (err) {
-                    reject(new Error("Не удалось разобрать ответ сервера"));
-                }
-            } else {
-                reject(new Error(xhr.responseText || xhr.statusText || `HTTP ${xhr.status}`));
-            }
-        };
-
-        xhr.onerror = () => reject(new Error("Network error"));
-        xhr.send(fd);
-    });
+    const text = await res.text();
+    return text ? JSON.parse(text) : {};
 }
 
 export default function UploadPage() {
     const { user, hydrated, refreshUser } = useUser();
-    const tokenQuery = authApi.authQuery(); // ?token=...
-
-    // access control
     const [forbidden, setForbidden] = useState(false);
-
-    // audio upload state
     const [audioFile, setAudioFile] = useState(null);
     const [audioAsset, setAudioAsset] = useState(null);
     const [audioUploadProgress, setAudioUploadProgress] = useState(0);
     const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
-
-    // cover upload state (for album creation)
     const [coverFile, setCoverFile] = useState(null);
     const [coverAsset, setCoverAsset] = useState(null);
     const [coverUploadProgress, setCoverUploadProgress] = useState(0);
-
-    // artist cover upload state
-    const [artistCoverFile, setArtistCoverFile] = useState(null);
-    const [artistCoverAsset, setArtistCoverAsset] = useState(null);
-    const [artistCoverUploadProgress, setArtistCoverUploadProgress] = useState(0);
-
-    // metadata
     const [trackName, setTrackName] = useState("");
     const [albums, setAlbums] = useState([]);
     const [artists, setArtists] = useState([]);
     const [selectedAlbumId, setSelectedAlbumId] = useState(null);
-
-    // album creation
     const [creatingAlbum, setCreatingAlbum] = useState(false);
     const [newAlbumName, setNewAlbumName] = useState("");
     const [newAlbumArtistId, setNewAlbumArtistId] = useState(null);
     const [createAlbumLoading, setCreateAlbumLoading] = useState(false);
-
-    // artist creation
-    const [creatingArtist, setCreatingArtist] = useState(false);
-    const [newArtistName, setNewArtistName] = useState("");
-    const [newArtistBio, setNewArtistBio] = useState("");
-    const [createArtistLoading, setCreateArtistLoading] = useState(false);
-
-    // song create
     const [creatingSong, setCreatingSong] = useState(false);
-
-    // UI messages
     const [error, setError] = useState(null);
     const [successMsg, setSuccessMsg] = useState(null);
-
-    // refs for drag/drop
     const dropRef = useRef();
 
     useEffect(() => {
-        // access control: wait for hydrated
         if (!hydrated) return;
         if (!user) {
             setForbidden(true);
@@ -117,22 +60,17 @@ export default function UploadPage() {
             return;
         }
         setForbidden(false);
-
-        // fetch albums (we use /user/ endpoint that returns albums list)
         (async () => {
             try {
-                const u = await fetchJson(`${BACKEND_URL}/user/${tokenQuery}`);
-                setAlbums(u?.albums || []);
+                const idx = await musicApi.getIndex();
+                setAlbums(idx?.albums ?? []);
             } catch (e) {
-                // fallback: try to fetch albums via admin artist endpoints or ignore
                 console.warn("Не удалось получить альбомы:", e);
                 setAlbums([]);
             }
 
-            // fetch artists for album creation (admin endpoint)
             try {
-                const res = await fetchJson(`${BACKEND_URL}/admin/artists${tokenQuery}&page=1`);
-                // Respects format { total, page, per_page, items: [...] } OR simple list.
+                const res = await musicApi.adminGetArtists(1);
                 const items = res?.items ?? res?.artists ?? res;
                 setArtists(Array.isArray(items) ? items : []);
             } catch (e) {
@@ -140,39 +78,37 @@ export default function UploadPage() {
                 setArtists([]);
             }
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hydrated, user]);
 
     useEffect(() => {
         return () => {
-            // cleanup preview url
             if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
         };
     }, [audioPreviewUrl]);
 
-    // handle file selection (audio)
     const handleAudioSelect = async (file) => {
         setError(null);
         setSuccessMsg(null);
+
+        if (!file.name.toLowerCase().endsWith(".mp3") || file.type !== "audio/mpeg") {
+            setError("Допустим только формат MP3");
+            return;
+        }
         setAudioFile(file);
         setAudioAsset(null);
         setAudioUploadProgress(0);
 
-        // create preview
         if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
         const url = URL.createObjectURL(file);
         setAudioPreviewUrl(url);
 
-        // start upload immediately
         try {
-            const ensureType = file.type || "audio/mpeg";
-            const uploadUrl = `${BACKEND_URL}/admin/upload${tokenQuery}&ensure_type=${encodeURIComponent(ensureType)}`;
-            const res = await uploadFileWithProgress(uploadUrl, file, setAudioUploadProgress);
-            // expect { asset: { asset_id, content_type, is_uploaded } }
-            const asset = res?.asset ?? null;
-            if (!asset || !asset.asset_id) {
-                throw new Error("Сервер не вернул asset_id");
-            }
+            const asset = await musicApi.uploadAssetWithProgress(
+                file,
+                setAudioUploadProgress,
+                "audio/mpeg"
+            );
+            if (!asset || !asset.asset_id) throw new Error("Сервер не вернул asset_id");
             setAudioAsset(asset);
             setSuccessMsg("Аудиофайл успешно загружен");
         } catch (err) {
@@ -183,19 +119,23 @@ export default function UploadPage() {
         }
     };
 
-    // handle cover upload
     const handleCoverSelect = async (file) => {
         setError(null);
         setSuccessMsg(null);
+        if (!file.name.toLowerCase().endsWith(".png") || file.type !== "image/png") {
+            setError("Допустим только формат PNG");
+            return;
+        }
         setCoverFile(file);
         setCoverUploadProgress(0);
         setCoverAsset(null);
 
         try {
-            const ensureType = file.type || "image/jpeg";
-            const uploadUrl = `${BACKEND_URL}/admin/upload${tokenQuery}&ensure_type=${encodeURIComponent(ensureType)}`;
-            const res = await uploadFileWithProgress(uploadUrl, file, setCoverUploadProgress);
-            const asset = res?.asset ?? null;
+            const asset = await musicApi.uploadAssetWithProgress(
+                file,
+                setCoverUploadProgress,
+                "image/png"
+            );
             if (!asset || !asset.asset_id) throw new Error("Сервер не вернул asset_id для обложки");
             setCoverAsset(asset);
             setSuccessMsg("Обложка загружена");
@@ -206,78 +146,7 @@ export default function UploadPage() {
         }
     };
 
-    // handle artist cover upload
-    const handleArtistCoverSelect = async (file) => {
-        setError(null);
-        setSuccessMsg(null);
-        setArtistCoverFile(file);
-        setArtistCoverUploadProgress(0);
-        setArtistCoverAsset(null);
 
-        try {
-            const ensureType = file.type || "image/jpeg";
-            const uploadUrl = `${BACKEND_URL}/admin/upload${tokenQuery}&ensure_type=${encodeURIComponent(ensureType)}`;
-            const res = await uploadFileWithProgress(uploadUrl, file, setArtistCoverUploadProgress);
-            const asset = res?.asset ?? null;
-            if (!asset || !asset.asset_id) throw new Error("Сервер не вернул asset_id для обложки исполнителя");
-            setArtistCoverAsset(asset);
-            setSuccessMsg("Обложка исполнителя загружена");
-        } catch (err) {
-            console.error(err);
-            setError("Ошибка загрузки обложки исполнителя: " + (err.message || err));
-            setArtistCoverFile(null);
-        }
-    };
-
-    // create new artist
-    const handleCreateArtist = async () => {
-        setError(null);
-        setSuccessMsg(null);
-
-        if (!newArtistName || newArtistName.length < 4) {
-            setError("Имя исполнителя должно быть минимум 4 символа");
-            return;
-        }
-        if (!newArtistBio || newArtistBio.length < 8) {
-            setError("Биография должна быть минимум 8 символов");
-            return;
-        }
-        if (!artistCoverAsset) {
-            setError("Загрузите обложку исполнителя");
-            return;
-        }
-
-        setCreateArtistLoading(true);
-        try {
-            const payload = {
-                name: newArtistName,
-                biography: newArtistBio,
-                asset_id: Number(artistCoverAsset.asset_id),
-            };
-            const res = await fetchJson(`${BACKEND_URL}/admin/artists${tokenQuery}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const artist = res?.artist ?? res;
-            // add to artists list and select it
-            setArtists((prev) => [artist, ...prev]);
-            setNewAlbumArtistId(artist?.artist_id ?? null);
-            setCreatingArtist(false);
-            setNewArtistName("");
-            setNewArtistBio("");
-            setArtistCoverFile(null);
-            setArtistCoverAsset(null);
-            setSuccessMsg("Исполнитель создан");
-        } catch (err) {
-            console.error(err);
-            setError("Ошибка создания исполнителя: " + (err.message || err));
-        } finally {
-            setCreateArtistLoading(false);
-        }
-    };
-
-    // create new album
     const handleCreateAlbum = async () => {
         setError(null);
         setSuccessMsg(null);
@@ -302,13 +171,8 @@ export default function UploadPage() {
                 artist_id: Number(newAlbumArtistId),
                 asset_id: Number(coverAsset.asset_id),
             };
-            const res = await fetchJson(`${BACKEND_URL}/admin/albums${tokenQuery}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+            const res = await musicApi.adminCreateAlbum(payload);
             const album = res?.album ?? res;
-            // add to albums list and select it
             setAlbums((prev) => [album, ...prev]);
             setSelectedAlbumId(album?.album_id ?? null);
             setCreatingAlbum(false);
@@ -324,12 +188,11 @@ export default function UploadPage() {
         }
     };
 
-    // create song
     const handleCreateSong = async () => {
         setError(null);
         setSuccessMsg(null);
 
-        if (!audioAsset || !audioAsset.asset_id) {
+        if (!audioAsset?.asset_id) {
             setError("Сначала загрузите аудио-файл");
             return;
         }
@@ -349,20 +212,17 @@ export default function UploadPage() {
                 album_id: Number(selectedAlbumId),
                 asset_id: Number(audioAsset.asset_id),
             };
-            const res = await fetchJson(`${BACKEND_URL}/admin/songs${tokenQuery}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+
+            const res = await musicApi.adminCreateSong(payload);
             const song = res?.song ?? res;
+
             setSuccessMsg("Трек создан успешно!");
-            // clean form
             setAudioFile(null);
             setAudioAsset(null);
             setAudioPreviewUrl(null);
             setAudioUploadProgress(0);
             setTrackName("");
-            try { await refreshUser(); } catch {}
+            await refreshUser();
         } catch (err) {
             console.error(err);
             setError("Ошибка создания трека: " + (err.message || err));
@@ -371,7 +231,6 @@ export default function UploadPage() {
         }
     };
 
-    // drag & drop handlers
     useEffect(() => {
         const el = dropRef.current;
         if (!el) return;
@@ -398,7 +257,6 @@ export default function UploadPage() {
             el.removeEventListener("dragleave", onDragLeave);
             el.removeEventListener("drop", onDrop);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dropRef.current, audioPreviewUrl]);
 
     if (!hydrated) {
@@ -435,7 +293,6 @@ export default function UploadPage() {
                 <h1 className="text-2xl font-bold mb-6 text-white">Загрузка трека</h1>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                    {/* Left: Audio uploader */}
                     <div className="space-y-4">
                         <label className="block text-sm font-medium text-white/90">Аудиофайл</label>
 
@@ -470,7 +327,7 @@ export default function UploadPage() {
                                     >
                                         Выбрать файл
                                     </label>
-                                    <p className="text-xs text-purple-200 mt-3">mp3, m4a, wav и другие форматы</p>
+                                    <p className="text-xs text-purple-200 mt-3">В формате mp3</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -526,7 +383,6 @@ export default function UploadPage() {
                         </div>
                     </div>
 
-                    {/* Right: Album selection */}
                     <div className="space-y-4">
                         <label className="block text-sm font-medium text-white/90">Альбом</label>
 
@@ -576,84 +432,7 @@ export default function UploadPage() {
                                             </option>
                                         ))}
                                     </select>
-
-                                    <button
-                                        className="mt-2 text-xs text-purple-200 hover:text-white underline"
-                                        onClick={() => setCreatingArtist((v) => !v)}
-                                    >
-                                        {creatingArtist ? "Отменить создание исполнителя" : "Создать нового исполнителя"}
-                                    </button>
                                 </div>
-
-                                {creatingArtist && (
-                                    <div className="p-4 rounded-lg bg-white/10 border border-white/20 space-y-3">
-                                        <div>
-                                            <label className="block text-xs font-medium mb-1 text-white/90">Имя исполнителя</label>
-                                            <input
-                                                value={newArtistName}
-                                                onChange={(e) => setNewArtistName(e.target.value)}
-                                                className="w-full rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-white text-sm placeholder-purple-200 focus:outline-none focus:border-white/40 transition"
-                                                placeholder="Имя исполнителя"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-medium mb-1 text-white/90">Биография</label>
-                                            <textarea
-                                                value={newArtistBio}
-                                                onChange={(e) => setNewArtistBio(e.target.value)}
-                                                className="w-full rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-white text-sm placeholder-purple-200 focus:outline-none focus:border-white/40 transition resize-none"
-                                                placeholder="Краткая биография исполнителя"
-                                                rows={3}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-medium mb-1 text-white/90">Обложка исполнителя</label>
-                                            <div className="border-2 border-dashed border-white/30 rounded-lg p-3 hover:border-white/50 transition">
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    id="artist-cover-input"
-                                                    onChange={(e) => {
-                                                        const f = e.target.files?.[0];
-                                                        if (f) handleArtistCoverSelect(f);
-                                                    }}
-                                                />
-                                                {!artistCoverFile ? (
-                                                    <label htmlFor="artist-cover-input" className="flex flex-col items-center cursor-pointer">
-                                                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center mb-1">
-                                                            <User className="text-white" size={18} />
-                                                        </div>
-                                                        <span className="text-white text-xs">Выбрать фото</span>
-                                                    </label>
-                                                ) : (
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="text-xs text-white">{artistCoverFile.name}</div>
-                                                            {artistCoverUploadProgress === 100 && (
-                                                                <Check className="text-green-300" size={16} />
-                                                            )}
-                                                        </div>
-                                                        <div className="w-full bg-white/20 h-1 rounded-full overflow-hidden">
-                                                            <div style={{ width: `${artistCoverUploadProgress}%` }} className="h-1 bg-purple-300 transition-all" />
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            disabled={createArtistLoading}
-                                            onClick={handleCreateArtist}
-                                            className="w-full px-3 py-2 rounded-lg bg-white/20 text-white text-sm hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-                                        >
-                                            {createArtistLoading && <Loader2 className="animate-spin" size={14} />}
-                                            {createArtistLoading ? "Создаём..." : "Создать исполнителя"}
-                                        </button>
-                                    </div>
-                                )}
 
                                 <div>
                                     <label className="block text-sm font-medium mb-1 text-white/90">Обложка альбома</label>
@@ -704,7 +483,6 @@ export default function UploadPage() {
                     </div>
                 </div>
 
-                {/* Bottom controls */}
                 <div className="mt-8 flex items-center gap-3 flex-wrap">
                     <button
                         disabled={creatingSong || !audioAsset}
@@ -737,7 +515,6 @@ export default function UploadPage() {
                     )}
                 </div>
 
-                {/* Messages */}
                 {(error || successMsg) && (
                     <div className="mt-6">
                         {error && (

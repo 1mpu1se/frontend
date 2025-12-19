@@ -10,8 +10,6 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, is
 
     const handleOpen = (e) => setAnchorEl(e.currentTarget);
     const handleClose = () => setAnchorEl(null);
-
-    const handleAdd = () => { onAddToPlaylist?.(song); handleClose(); };
     const handleDelete = () => { onDelete?.(song); handleClose(); };
     const handleAbout = () => { onAbout?.(song); handleClose(); };
 
@@ -46,23 +44,10 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, is
                     },
                 }}
             >
-                {/* Пункты, доступные только админам — рендерим по отдельности, без Fragment */}
-                {isAdmin && (
-                    <MenuItem onClick={handleAdd}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                            <img src="/music/track-menu/add.svg" alt="Добавить" className="w-5.5 h-5.5" />
-                        </ListItemIcon>
-                        <ListItemText primary="Добавить в плейлист" />
-                    </MenuItem>
-                )}
-
-                {isAdmin && (
-                    <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
-                )}
-
                 {isAdmin && (
                     <MenuItem onClick={handleDelete}>
                         <ListItemIcon sx={{ minWidth: 36 }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src="/music/track-menu/delete.svg" alt="Удалить" className="w-5.5 h-5.5" />
                         </ListItemIcon>
                         <ListItemText primary="Удалить" />
@@ -73,9 +58,9 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, is
                     <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
                 )}
 
-                {/* Всегда доступный пункт */}
                 <MenuItem onClick={handleAbout}>
                     <ListItemIcon sx={{ minWidth: 36 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/music/track-menu/info.svg" alt="О треке" className="w-5.5 h-5.5" />
                     </ListItemIcon>
                     <ListItemText primary="О треке" />

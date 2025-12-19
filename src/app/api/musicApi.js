@@ -1,122 +1,234 @@
-import authApi from "@/app/api/auth";
+import authApi from "@/app/api/authApi";
 import { BACKEND_URL } from "@/config/api";
 
-/**
- * musicApi — thin wrapper around 1mpu1se Swagger endpoints
- *
- * IMPORTANT:
- * - токен берём из authApi.authQuery() (возвращает "?token=...")
- * - для загрузки файлов используем XHR, чтобы иметь прогресс
- */
-
-const tokenQuery = () => authApi.authQuery(); // "?token=..."
-
-function handleJsonResponse(res) {
-    if (!res.ok) return res.text().then(t => { throw new Error(t || res.statusText || `HTTP ${res.status}`); });
-    return res.json();
+function getToken() {
+    if (typeof authApi.getToken === "function") return authApi.getToken();
+    if (typeof authApi.authQuery === "function") {
+        const q = authApi.authQuery();
+        if (!q) return null;
+        const m = q.match(/[?&]token=([^&]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+    return null;
 }
 
-// Upload with progress using XMLHttpRequest (returns parsed JSON)
-export function uploadAsset(file, onProgress = () => {}) {
+function appendTokenToPath(path) {
+    const t = getToken();
+    if (!t) return path;
+    return path.includes("?") ? `${path}&token=${encodeURIComponent(t)}` : `${path}?token=${encodeURIComponent(t)}`;
+}
+
+async function handleJsonResponse(res) {
+    const text = await res.text();
+    let data;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch {
+        data = text;
+    }
+
+    if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+            try { authApi.clearToken(); authApi.clearUser(); } catch (e) {}
+            const err = new Error("NO_TOKEN");
+            err.code = "NO_TOKEN";
+            err.status = res.status;
+            err.data = data;
+            throw err;
+        }
+
+        const msg = (data && (data.detail || data.message || data.error)) || res.statusText || `HTTP ${res.status}`;
+        const err = new Error(msg);
+        err.status = res.status;
+        err.data = data;
+        throw err;
+    }
+
+    return data;
+}
+
+
+async function getJson(path) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
+    const res = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+    });
+    return handleJsonResponse(res);
+}
+
+async function postJson(path, body) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return handleJsonResponse(res);
+}
+
+async function putJson(path, body) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
+    const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return handleJsonResponse(res);
+}
+
+async function deleteJson(path) {
+    const url = appendTokenToPath(`${BACKEND_URL}${path}`);
+    const res = await fetch(url, { method: "DELETE" });
+    return handleJsonResponse(res);
+}
+
+export async function adminGetUsers(page = 1) {
+    return getJson(`/admin/users?page=${page}`);
+}
+export async function adminGetArtists(page = 1) {
+    return getJson(`/admin/artists?page=${page}`);
+}
+export async function adminGetAlbums(page = 1) {
+    return getJson(`/admin/albums?page=${page}`);
+}
+
+/* Users */
+export async function adminCreateUser(body) {
+    return postJson(`/admin/users`, body);
+}
+export async function adminUpdateUser(userId, body) {
+    return putJson(`/admin/users/${encodeURIComponent(userId)}`, body);
+}
+export async function adminDeleteUser(userId) {
+    return deleteJson(`/admin/users/${encodeURIComponent(userId)}`);
+}
+
+export async function adminCreateArtist(body) {
+    return postJson(`/admin/artists`, body);
+}
+export async function adminUpdateArtist(artistId, body) {
+    return putJson(`/admin/artists/${encodeURIComponent(artistId)}`, body);
+}
+export async function adminDeleteArtist(artistId) {
+    return deleteJson(`/admin/artists/${encodeURIComponent(artistId)}`);
+}
+
+/* Albums */
+
+export async function adminGetArtistAlbums(artistId, page = 1) {
+    return getJson(`/admin/artists/${encodeURIComponent(artistId)}/albums?page=${page}`);
+}
+export async function adminCreateAlbum(body) {
+    return postJson(`/admin/albums`, body);
+}
+export async function adminUpdateAlbum(albumId, body) {
+    return putJson(`/admin/albums/${encodeURIComponent(albumId)}`, body);
+}
+export async function adminDeleteAlbum(albumId) {
+    return deleteJson(`/admin/albums/${encodeURIComponent(albumId)}`);
+}
+
+export function getAssetUrl(assetId) {
+    if (!assetId) return null;
+    return appendTokenToPath(`${BACKEND_URL}/user/asset/${encodeURIComponent(assetId)}`);
+}
+
+export function uploadAssetWithProgress(file, onProgress, ensure_type = "image/png") {
     return new Promise((resolve, reject) => {
         const fd = new FormData();
         fd.append("file", file);
 
-        const ensureType = encodeURIComponent(file.type || "application/octet-stream");
-        const url = `${BACKEND_URL}/admin/upload${tokenQuery()}&ensure_type=${ensureType}`;
+        const token = getToken();
+        const tokenQ = token ? `?token=${encodeURIComponent(token)}` : "";
+
+        const sep = tokenQ ? "&" : "?";
+        const url = `${BACKEND_URL}/admin/upload${tokenQ}${sep}ensure_type=${encodeURIComponent(ensure_type)}`;
 
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url, true);
 
         xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const p = Math.round((e.loaded / e.total) * 100);
-                onProgress(p);
+            if (e.lengthComputable && onProgress) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
             }
         };
 
         xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
-                    const data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
-                    resolve(data);
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data.asset);
                 } catch (err) {
-                    reject(new Error("Не удалось распарсить ответ сервера"));
+                    reject(new Error("Ошибка парсинга ответа"));
                 }
             } else {
                 reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
             }
         };
 
-        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.onerror = () => reject(new Error("Сетевая ошибка"));
         xhr.send(fd);
     });
 }
 
-// JSON POST helper
-async function postJson(path, body) {
-    const res = await fetch(`${BACKEND_URL}${path}${tokenQuery()}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
-    return handleJsonResponse(res);
-}
-
-export async function createSong({ name, album_id, asset_id }) {
-    const body = { name, album_id: Number(album_id), asset_id: Number(asset_id) };
-    const data = await postJson("/admin/songs", body);
-    // возвращаем объект song (внешний вид зависит от бэка: data.song или data)
-    return data?.song ?? data;
-}
-
-export async function createAlbum({ name, artist_id, asset_id }) {
-    const body = { name, artist_id: Number(artist_id), asset_id: Number(asset_id) };
-    const data = await postJson("/admin/albums", body);
-    return data?.album ?? data;
-}
-
-export async function createArtist({ name, biography, asset_id }) {
-    const body = { name, biography, asset_id: Number(asset_id) };
-    const data = await postJson("/admin/artists", body);
-    return data?.artist ?? data;
-}
-
-export async function deleteSong(songId) {
-    const res = await fetch(`${BACKEND_URL}/admin/songs/${encodeURIComponent(songId)}${tokenQuery()}`, {
-        method: "DELETE",
-    });
-    return handleJsonResponse(res);
-}
-
-// Получить список "индекс" (artists, albums, songs)
-// Используем /user/ — он возвращает до 10 последних, но это самый прямой endpoint из Swagger
 export async function getIndex() {
-    const res = await fetch(`${BACKEND_URL}/user/${tokenQuery()}`, { method: "GET", headers: { "Content-Type": "application/json" } });
-    return handleJsonResponse(res);
+    if (!getToken()) {
+        const err = new Error("NO_TOKEN");
+        err.code = "NO_TOKEN";
+        return Promise.reject(err);
+    }
+    try {
+        return await getJson("/user/");
+    } catch (err) {
+        if (err && (err.code === "NO_TOKEN" || err.status === 401 || err.status === 403)) {
+            const e = new Error("NO_TOKEN");
+            e.code = "NO_TOKEN";
+            return Promise.reject(e);
+        }
+        throw err;
+    }
 }
 
-// Поиск: GET /user/search?q=...
-export async function searchIndex(q) {
-    const url = `${BACKEND_URL}/user/search${tokenQuery()}&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { method: "GET", headers: { "Content-Type": "application/json" } });
-    return handleJsonResponse(res);
+export async function adminCreateSong(body) {
+    return postJson(`/admin/songs`, body);
 }
 
-// Helper: формирует доступный по src URL для вложений (аудио/обложки)
-export function getAssetUrl(assetId) {
-    if (!assetId) return null;
-    return `${BACKEND_URL}/user/asset/${encodeURIComponent(assetId)}${tokenQuery()}`;
+export async function adminUpdateSong(songId, body) {
+    return putJson(`/admin/songs/${encodeURIComponent(songId)}`, body);
 }
 
-/**
- * Преобразование ответа /user/ (artists, albums, songs) в UI-формат:
- * { id, title, artist, duration, cover, audioUrl, raw }
- */
+export async function adminDeleteSong(songId) {
+    return deleteJson(`/admin/songs/${encodeURIComponent(songId)}`);
+}
+
+export async function getArtist(artistId) {
+    return getJson(`/user/artist/${artistId}`);
+}
+
+export async function getArtistAlbums(artistId, page = 1) {
+    return getJson(`/user/artist/${artistId}/albums?page=${page}`);
+}
+
+export async function getAlbum(albumId) {
+    return getJson(`/user/album/${albumId}`);
+}
+
+export async function getAlbumSongs(albumId, page = 1) {
+    return getJson(`/user/album/${albumId}/songs?page=${page}`);
+}
+
 export async function getTracksMapped() {
-    const idx = await getIndex();
-
-    console.log('Songs from server:', idx.songs); // <- здесь
+    let idx;
+    try {
+        idx = await getIndex();
+    } catch (err) {
+        if (err && (err.code === "NO_TOKEN" || err.message === "NO_TOKEN")) {
+            console.info("getTracksMapped: no auth token – skipping tracks load");
+            return [];
+        }
+        throw err;
+    }
 
     const artists = idx?.artists ?? [];
     const albums = idx?.albums ?? [];
@@ -146,10 +258,29 @@ export async function getTracksMapped() {
     });
 }
 
-
 export const musicApi = {
+    adminGetUsers,
+    adminGetArtists,
+    adminCreateUser,
+    adminCreateSong,
+    adminUpdateSong,
+    adminDeleteSong,
+    adminUpdateUser,
+    adminDeleteUser,
+    adminCreateArtist,
+    adminUpdateArtist,
+    adminDeleteArtist,
+    adminGetArtistAlbums,
+    adminCreateAlbum,
+    adminUpdateAlbum,
+    adminDeleteAlbum,
+    uploadAssetWithProgress,
+    getAssetUrl,
+    getIndex,
+    getArtist,
+    getArtistAlbums,
+    getAlbum,
+    getAlbumSongs,
     getTracks: getTracksMapped,
     getAudioUrl: getAssetUrl,
-    createSong,
-    deleteTrack: deleteSong,
 };

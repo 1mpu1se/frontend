@@ -4,17 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { Slider } from "@mui/material";
 import { useMusic } from "@/app/MusicContext";
 import { formatSeconds } from '@/app/utils/time';
-import "@/app/components/PlayerBar.css";
+import "@/components/PlayerBar.css";
 
 export default function PlayerBar({ currentSong, isPlaying, onTogglePlay, onPrev, onNext }) {
     const [progress, setProgress] = useState(0);
     const [volume, setVolume] = useState(80);
     const prevVolumeRef = useRef(80);
 
-    const { seekTo, setVolume: setAudioVolume, currentTime } = useMusic();
-
-    const [repeatState, setRepeatState] = useState(0);
-    const [shuffleActive, setShuffleActive] = useState(false);
+    const { seekTo, setVolume: setAudioVolume, currentTime, repeatMode, shuffleMode, toggleRepeat, toggleShuffle } = useMusic();
 
     const isUserSeekingRef = useRef(false);
     const seekingValueRef = useRef(0);
@@ -92,24 +89,39 @@ export default function PlayerBar({ currentSong, isPlaying, onTogglePlay, onPrev
                     <div className="player-controls">
                         <div className="transport">
                             <button onClick={onPrev} aria-label="Previous" className="icon-btn">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src="/music/skip-back.svg" alt="Previous" width={22} height={22} />
                             </button>
 
                             <button onClick={onTogglePlay} aria-label={isPlaying ? "Pause" : "Play"} className="icon-btn play-btn">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={isPlaying ? "/music/pause.svg" : "/music/play.svg"} alt="Play/Pause" width={32} height={32} />
                             </button>
 
                             <button onClick={onNext} aria-label="Next" className="icon-btn">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src="/music/skip-forward.svg" alt="Next" width={22} height={22} />
                             </button>
                         </div>
 
                         <div className="extras">
-                            <button onClick={() => setRepeatState((s) => (s + 1) % 3)} className="icon-btn">
-                                <img src={repeatState === 2 ? "/music/repeat-one.svg" : repeatState === 1 ? "/music/repeat-on.svg" : "/music/repeat-off.svg"} width={22} height={22} />
+                            <button onClick={toggleRepeat} className="icon-btn" title={repeatMode === 0 ? "Повтор выключен" : repeatMode === 1 ? "Повтор плейлиста" : "Повтор трека"}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={repeatMode === 2 ? "/music/repeat-one.svg" : repeatMode === 1 ? "/music/repeat-on.svg" : "/music/repeat-off.svg"}
+                                    alt="Repeat"
+                                    width={22}
+                                    height={22}
+                                />
                             </button>
-                            <button onClick={() => setShuffleActive(s => !s)} className="icon-btn">
-                                <img src={shuffleActive ? "/music/shuffle-on.svg" : "/music/shuffle-off.svg"} width={23} height={23} />
+                            <button onClick={toggleShuffle} className="icon-btn" title={shuffleMode ? "Перемешивание включено" : "Перемешивание выключено"}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={shuffleMode ? "/music/shuffle-on.svg" : "/music/shuffle-off.svg"}
+                                    alt="Shuffle"
+                                    width={23}
+                                    height={23}
+                                />
                             </button>
                         </div>
                     </div>
@@ -155,6 +167,7 @@ export default function PlayerBar({ currentSong, isPlaying, onTogglePlay, onPrev
 
                     <div className="player-volume">
                         <button onClick={toggleMute} className="icon-btn" style={{ marginRight: 8 }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={(volume === 0) ? "/music/volume-mute.svg" : "/music/volume.svg"} width={18} height={18} />
                         </button>
 
