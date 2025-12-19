@@ -3,11 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useUser } from "@/app/UserContext";
 import { musicApi } from "@/app/api/musicApi";
-import authApi from "@/app/api/authApi";
-import { BACKEND_URL } from "@/config/api";
-import {
-    Loader2, Users, Music, Album, Plus, Edit, Trash2, X, Check, Upload, Eye, EyeOff
-} from "lucide-react";
+import { Loader2, Users, Music, Album, Plus, Edit, Trash2, X, Check, Upload, Eye, EyeOff } from "lucide-react";
 
 const TABS = [
     { id: "users", label: "Пользователи", icon: Users },
@@ -24,48 +20,6 @@ function normalizeItems(res) {
     if (res.users) return res.users;
     if (res.songs) return res.songs;
     return [];
-}
-
-function appendTokenToUrl(path) {
-    const token = typeof authApi.getToken === "function" ? authApi.getToken() : null;
-    if (!token) return `${BACKEND_URL}${path}`;
-    const sep = path.includes("?") ? "&" : "?";
-    return `${BACKEND_URL}${path}${sep}token=${encodeURIComponent(token)}`;
-}
-
-async function handleFetch(res) {
-    const text = await res.text();
-    let data;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    if (!res.ok) {
-        const msg = (data && (data.detail || data.message || data.error)) || res.statusText || `HTTP ${res.status}`;
-        const err = new Error(msg);
-        err.status = res.status;
-        err.data = data;
-        throw err;
-    }
-    return data;
-}
-
-async function apiGet(path) {
-    const url = appendTokenToUrl(path);
-    const res = await fetch(url, { method: "GET", headers: { "Content-Type": "application/json" } });
-    return handleFetch(res);
-}
-async function apiPost(path, body) {
-    const url = appendTokenToUrl(path);
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    return handleFetch(res);
-}
-async function apiPut(path, body) {
-    const url = appendTokenToUrl(path);
-    const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    return handleFetch(res);
-}
-async function apiDelete(path) {
-    const url = appendTokenToUrl(path);
-    const res = await fetch(url, { method: "DELETE" });
-    return handleFetch(res);
 }
 
 export default function AdminManagePage() {
@@ -100,6 +54,8 @@ export default function AdminManagePage() {
     const [artistDropdownOpen, setArtistDropdownOpen] = useState(false);
     const [artistSearch, setArtistSearch] = useState("");
 
+    const [modalArtistDropdownOpen, setModalArtistDropdownOpen] = useState(false);
+    const [modalArtistSearch, setModalArtistSearch] = useState("");
     const [songModalOpen, setSongModalOpen] = useState(false);
     const [editingSong, setEditingSong] = useState(null);
     const [songForm, setSongForm] = useState({ name: "", asset_id: null });
@@ -109,12 +65,12 @@ export default function AdminManagePage() {
     const requestIdRef = useRef(0);
     const artistDropdownRef = useRef(null);
     const albumsDropdownRef = useRef(null);
+    const modalArtistDropdownRef = useRef(null);
 
     useEffect(() => {
         (async () => {
             await loadInitial();
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -134,7 +90,6 @@ export default function AdminManagePage() {
                 setLoading(false);
             }
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     useEffect(() => {
@@ -164,6 +119,9 @@ export default function AdminManagePage() {
             }
             if (albumsDropdownRef.current && !albumsDropdownRef.current.contains(e.target)) {
                 setAlbumsDropdownOpen(false);
+            }
+            if (modalArtistDropdownRef.current && !modalArtistDropdownRef.current.contains(e.target)) {
+                setModalArtistDropdownOpen(false);
             }
         }
         document.addEventListener("mousedown", onOutside);
@@ -462,6 +420,10 @@ export default function AdminManagePage() {
         al.name?.toLowerCase().includes(albumSearch.trim().toLowerCase())
     );
 
+    const filteredModalArtists = artists.filter(a =>
+        a.name?.toLowerCase().includes(modalArtistSearch.trim().toLowerCase())
+    );
+
     const openEditSongModal = (song) => {
         setEditingSong(song);
         setSongForm({ name: song.name || "", asset_id: song.asset_id ?? null, album_id: song.album_id });
@@ -472,7 +434,6 @@ export default function AdminManagePage() {
 
     const uploadAudioFile = async (file) => {
         if (!file) return null;
-        // validate mp3
         if (!file.name.toLowerCase().endsWith(".mp3") && file.type !== "audio/mpeg") {
             throw new Error("Допустим только формат MP3");
         }
@@ -555,7 +516,17 @@ export default function AdminManagePage() {
                                 <span className="truncate">
                                     {selectedArtistId ? (artists.find(a => a.artist_id === selectedArtistId)?.name ?? `ID ${selectedArtistId}`) : "— Выберите исполнителя —"}
                                 </span>
-                                <svg width="16" height="16" viewBox="0 0 24 24" className={`${artistDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <div className="flex items-center gap-1">
+                                    {selectedArtistId && (
+                                        <span
+                                            onClick={(e) => { e.stopPropagation(); setSelectedArtistId(null); }}
+                                            className="hover:bg-white/20 rounded-full p-0.5 cursor-pointer"
+                                        >
+                                            <X size={14} />
+                                        </span>
+                                    )}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" className={`${artistDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
                             </button>
 
                             {artistDropdownOpen && (
@@ -600,7 +571,17 @@ export default function AdminManagePage() {
                                 <span className="truncate">
                                     {selectedAlbumId ? (albumsForArtist.find(al => al.album_id === selectedAlbumId)?.name ?? `ID ${selectedAlbumId}`) : "— Выберите альбом —"}
                                 </span>
-                                <svg width="16" height="16" viewBox="0 0 24 24" className={`${albumsDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <div className="flex items-center gap-1">
+                                    {selectedAlbumId && (
+                                        <span
+                                            onClick={(e) => { e.stopPropagation(); setSelectedAlbumId(null); }}
+                                            className="hover:bg-white/20 rounded-full p-0.5 cursor-pointer"
+                                        >
+                                            <X size={14} />
+                                        </span>
+                                    )}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" className={`${albumsDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
                             </button>
 
                             {albumsDropdownOpen && selectedArtistId && (
@@ -678,14 +659,15 @@ export default function AdminManagePage() {
                                 <th className="py-3 px-4">Название</th>
                                 {activeTab === "users" && <th className="py-3 px-4">Админ</th>}
                                 {activeTab === "artists" && <th className="py-3 px-4">Биография</th>}
-                                {activeTab === "albums" && <th className="py-3 px-4">Исполнитель</th>}
+                                {activeTab === "albums" && !selectedAlbumId && <th className="py-3 px-4">Исполнитель</th>}
+                                {activeTab === "albums" && selectedAlbumId && <th className="py-3 px-4">Вложение</th>}
                                 <th className="py-3 px-4 text-center">Действия</th>
                             </tr>
                             </thead>
                             <tbody>
                             {(!tableItems || tableItems.length === 0) ? (
                                 <tr>
-                                    <td colSpan="5" className="text-center py-12 text-white/5">
+                                    <td colSpan="5" className="text-center py-12 text-white/70">
                                         {activeTab === "albums" && !selectedArtistId ? "Выберите исполнителя, чтобы увидеть альбомы" :
                                             activeTab === "albums" && selectedArtistId && !selectedAlbumId ? "Альбомы не найдены" :
                                                 activeTab === "albums" && selectedAlbumId && tracksLoading ? "Загрузка треков..." : "Нет данных"}
@@ -817,10 +799,51 @@ export default function AdminManagePage() {
                                     {activeTab === "albums" && (
                                         <div>
                                             <label className="block text-sm font-medium mb-2">Исполнитель</label>
-                                            <select value={formState.artist_id || ""} onChange={(e) => setFormState({ ...formState, artist_id: e.target.value })} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 focus:border-white/40 focus:outline-none transition">
-                                                <option value="">— Выберите —</option>
-                                                {artists.map((a) => <option key={a.artist_id} value={a.artist_id}>{a.name}</option>)}
-                                            </select>
+                                            <div className="relative" ref={modalArtistDropdownRef}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setModalArtistDropdownOpen(v => !v)}
+                                                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-white/10 border border-white/20 focus:border-white/40 text-white transition"
+                                                >
+                                                    <span className="truncate">
+                                                        {formState.artist_id ? (artists.find(a => a.artist_id === Number(formState.artist_id))?.name ?? `ID ${formState.artist_id}`) : "— Выберите исполнителя —"}
+                                                    </span>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" className={`${modalArtistDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                </button>
+
+                                                {modalArtistDropdownOpen && (
+                                                    <div className="absolute z-[60] mt-2 w-full rounded-lg shadow-lg bg-[#6b547f]/95 border border-white/10">
+                                                        <div className="p-2">
+                                                            <input
+                                                                value={modalArtistSearch}
+                                                                onChange={(e) => setModalArtistSearch(e.target.value)}
+                                                                placeholder="Поиск исполнителя..."
+                                                                className="w-full px-3 py-2 rounded-md bg-[#5b486a] text-white placeholder-white/60 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                        <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                                                            {filteredModalArtists.length === 0 ? (
+                                                                <div className="px-3 py-2 text-white/60">Ничего не найдено</div>
+                                                            ) : (
+                                                                filteredModalArtists.slice(0, 50).map((a) => (
+                                                                    <button
+                                                                        key={a.artist_id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFormState({ ...formState, artist_id: a.artist_id });
+                                                                            setModalArtistDropdownOpen(false);
+                                                                            setModalArtistSearch("");
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 bg-[#826d9d]/80 hover:bg-[#533f63] transition text-white flex items-center gap-2"
+                                                                    >
+                                                                        <span className="truncate">{a.name}</span>
+                                                                    </button>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 
@@ -829,7 +852,6 @@ export default function AdminManagePage() {
 
                                         {coverUrl && (
                                             <div className="mb-3 relative inline-block">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={coverUrl} alt="preview" className="w-32 h-32 object-cover rounded-lg" />
                                                 <button type="button" className="absolute -top-2 -right-2 bg-black/60 rounded-full p-1 hover:bg-black/80 transition" aria-label="Удалить изображение" onClick={() => { setCoverAsset(null); }}>
                                                     <X size={14} />

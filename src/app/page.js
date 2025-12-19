@@ -6,6 +6,7 @@ import ArtistCard from "@/components/ArtistCard";
 import AlbumCard from "@/components/AlbumCard";
 import TrackItem from "@/components/TrackItem";
 import { musicApi } from "@/app/api/musicApi";
+import { useMusic } from "@/app/MusicContext";
 import { useRouter } from "next/navigation";
 
 export default function HomePage() {
@@ -15,7 +16,10 @@ export default function HomePage() {
 
     const [artists, setArtists] = useState([]);
     const [albums, setAlbums] = useState([]);
-    const [songs, setSongs] = useState([]);
+
+    // Используем треки из MusicContext вместо загрузки отдельно
+    const { songs: allSongs, loading: songsLoading, deleteTrack } = useMusic();
+    const songs = allSongs.slice(0, 10);
 
     useEffect(() => {
         loadData();
@@ -45,18 +49,13 @@ export default function HomePage() {
                 };
             });
 
-            const tracks = await musicApi.getTracks();
-            const songsData = tracks.slice(0, 10);
-
             setArtists(artistsData);
             setAlbums(albumsData);
-            setSongs(songsData);
             setError(null);
         } catch (err) {
             if (err?.code === "NO_TOKEN" || err?.message === "NO_TOKEN") {
                 setArtists([]);
                 setAlbums([]);
-                setSongs([]);
                 setError(null);
                 return;
             }
@@ -70,15 +69,14 @@ export default function HomePage() {
     const handleDelete = async (song) => {
         if (confirm(`Удалить трек "${song.title}"?`)) {
             try {
-                await musicApi.deleteTrack(song.id);
-                setSongs(prev => prev.filter(s => s.id !== song.id));
+                await deleteTrack(song.id);
             } catch (err) {
                 alert('Не удалось удалить трек');
             }
         }
     };
 
-    if (loading) {
+    if (loading || songsLoading) {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 className="animate-spin text-white" size={32} />
@@ -118,7 +116,6 @@ export default function HomePage() {
                 </section>
             )}
 
-            {/* Свежие альбомы */}
             {albums.length > 0 && (
                 <section className="mb-12">
                     <h2 className="text-2xl font-bold text-white mb-6">Свежие альбомы:</h2>
@@ -156,7 +153,6 @@ export default function HomePage() {
                 </section>
             )}
 
-            {/* Пустое состояние */}
             {artists.length === 0 && albums.length === 0 && songs.length === 0 && (
                 <div className="text-center py-20">
                     <p className="text-white/70 text-lg">Контент пока не добавлен</p>

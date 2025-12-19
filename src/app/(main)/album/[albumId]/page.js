@@ -143,7 +143,7 @@ export default function AlbumPage() {
             <div className="rounded-3xl p-6 md:p-10 shadow-2xl bg-gradient-to-br from-[#826d9d]/90 to-[#9b8ab1]/80 backdrop-blur-md mt-20">
                 <button
                     onClick={() => router.back()}
-                    className="relative z-10 w-10 h-10 mb-5 mt-0 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/70 transition-all hover:scale-110 shadow-xl"
+                    className="relative z-10 w-10 h-10 mb-5 mt-0 rounded-full bg-black/25 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-all hover:scale-110 shadow-xl"
                 >
                     <ArrowLeft size={24} strokeWidth={2.5} />
                 </button>
