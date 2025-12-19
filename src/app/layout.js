@@ -188,12 +188,12 @@ function LayoutContent({ children }) {
                         </Link>
 
                         <nav className="hidden md:flex gap-4 absolute left-1/2 transform -translate-x-1/2 pointer-events-auto">
-                            <Link href="/music" className="px-4 py-2 rounded-full hover:bg-white/10 transition">музыка</Link>
-                            <Link href="/playlists" className="px-4 py-2 rounded-full hover:bg-white/10 transition">плейлисты</Link>
+                            <Link href="/" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Главная</Link>
+                            <Link href="/music" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Музыка</Link>
                             {user && user.is_admin && (
                                 <>
-                                    <Link href="/admin/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">загрузка</Link>
-                                    <Link href="/admin/manage" className="px-4 py-2 rounded-full hover:bg-white/10 transition">админ-панель</Link>
+                                    <Link href="/admin/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Загрузка</Link>
+                                    <Link href="/admin/manage" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Админ-панель</Link>
                                 </>
                             )}
                         </nav>

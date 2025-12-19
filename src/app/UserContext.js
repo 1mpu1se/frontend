@@ -64,6 +64,12 @@ export function UserProvider({ children }) {
             if (isMountedRef.current) {
                 setChecked(true);
             }
+
+            try {
+                window.dispatchEvent(new CustomEvent("authChange", { detail: null }));
+            } catch (e) {
+                console.warn("Failed to dispatch authChange event", e);
+            }
         }
     };
 
@@ -80,7 +86,10 @@ export function UserProvider({ children }) {
             }
         })();
 
-        return () => { mounted = false; };
+        return () => {
+            mounted = false;
+            isMountedRef.current = false;
+        };
     }, []);
 
     const value = useMemo(() => ({

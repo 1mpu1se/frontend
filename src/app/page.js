@@ -10,8 +10,7 @@ import { musicApi } from "@/app/api/musicApi";
 import { useRouter } from "next/navigation";
 
 export default function HomePage() {
-    const router = useRouter();
-    const [searchQuery, setSearchQuery] = useState("");
+    useRouter();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -28,13 +27,11 @@ export default function HomePage() {
         try {
             const data = await musicApi.getIndex();
 
-            // Обрабатываем исполнителей
             const artistsData = (data?.artists || []).slice(0, 5).map(artist => ({
                 ...artist,
                 coverUrl: artist.asset_id ? musicApi.getAudioUrl(artist.asset_id) : null,
             }));
 
-            // Обрабатываем альбомы
             const artistsById = {};
             (data?.artists || []).forEach(a => {
                 artistsById[a.artist_id] = a;
@@ -49,7 +46,6 @@ export default function HomePage() {
                 };
             });
 
-            // Обрабатываем треки
             const tracks = await musicApi.getTracks();
             const songsData = tracks.slice(0, 10);
 
@@ -69,12 +65,6 @@ export default function HomePage() {
             setError("Ошибка загрузки данных");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleSearch = () => {
-        if (searchQuery.trim()) {
-            router.push(`/music?search=${encodeURIComponent(searchQuery)}`);
         }
     };
 
@@ -113,15 +103,7 @@ export default function HomePage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto">
-            {/* Поисковая строка */}
-            <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Поиск"
-            />
-
-            {/* Свежие исполнители */}
+        <div className="max-w-7xl mx-auto mt-12">
             {artists.length > 0 && (
                 <section className="mb-12">
                     <h2 className="text-2xl font-bold text-white mb-6">Свежие исполнители:</h2>
@@ -154,17 +136,20 @@ export default function HomePage() {
                 </section>
             )}
 
-            {/* Свежие треки */}
             {songs.length > 0 && (
                 <section className="mb-12">
                     <h2 className="text-2xl font-bold text-white mb-6">Свежие треки:</h2>
                     <div className="rounded-3xl p-6 shadow-lg bg-[#826d9d]/80 backdrop-blur-md">
                         <div className="space-y-1 mx-4">
-                            {songs.map(song => (
+                            {songs.map((song, index) => (
                                 <TrackItem
                                     key={song.id}
                                     song={song}
+                                    playlist={songs}
+                                    currentIndex={index}
+                                    index={index}
                                     onDelete={handleDelete}
+                                    hideCover={false}
                                 />
                             ))}
                         </div>

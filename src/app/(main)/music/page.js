@@ -1,16 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import Equalizer from "@/components/Equalizer";
-import TrackMenu from "@/components/TrackMenu";
+import TrackItem from "@/components/TrackItem";
 import { useMusic } from "@/app/MusicContext";
-import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
 import SearchBar from "@/components/SearchBar";
 
 export default function MusicPage() {
     const [searchQuery, setSearchQuery] = useState("");
-    const { songs, loading, error, playingSongId, isPlaying, currentTime, selectOrToggle } = useMusic();
+    const { songs, loading, error, deleteTrack } = useMusic();
     const [mounted, setMounted] = useState(false);
 
     const { user } = useUser();
@@ -70,82 +68,17 @@ export default function MusicPage() {
                         </div>
                     ) : (
                         <div className="space-y-1 mx-8">
-                            {filteredSongs.map((song) => {
-                                const isActive = playingSongId === song.id;
-                                const isSongPlaying = isActive && isPlaying;
-
-                                return (
-                                    <div
-                                        key={song.id}
-                                        className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition group ${isActive ? "bg-white/20" : ""}`}
-                                    >
-                                        <div
-                                            className="relative w-12 h-12 cursor-pointer"
-                                            onClick={() => selectOrToggle(song.id)}
-                                        >
-                                            <img
-                                                src={song.cover}
-                                                alt={`${song.title} cover`}
-                                                className="w-12 h-12 rounded-md object-cover"
-                                            />
-                                            <div className={`absolute inset-0 rounded-md transition-opacity 
-                                                  ${isActive ? "bg-black/50" : ""} 
-                                                  ${!isActive ? "group-hover:bg-black/30 opacity-0 group-hover:opacity-100" : ""}`}>
-                                            </div>
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="pointer-events-auto text-white transition transform hover:scale-110 opacity-0 group-hover:opacity-100">
-                                                    <img
-                                                        src={isSongPlaying ? "music/pause.svg" : "music/play.svg"}
-                                                        alt={isSongPlaying ? "Pause" : "Play"}
-                                                        width={26}
-                                                        height={26}
-                                                    />
-                                                </div>
-                                            </div>
-                                            {isSongPlaying && (
-                                                <div className="absolute inset-0 flex items-center justify-center group-hover:hidden">
-                                                    <Equalizer />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div
-                                            className="flex-1 cursor-pointer"
-                                            onClick={() => selectOrToggle(song.id)}
-                                        >
-                                            <h3 className="text-white font-medium">{song.title}</h3>
-                                            <p className="text-purple-200 text-sm">{song.artist}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3 relative">
-                                            <div className="relative w-12 flex justify-end">
-                                                <span className="text-white text-sm group-hover:opacity-0 transition-opacity">
-                                                    {isActive ? formatSeconds(currentTime) : formatSeconds(song.duration)}
-                                                </span>
-                                                <div
-                                                    key={mounted ? "client" : "server"}
-                                                    suppressHydrationWarning={true}
-                                                    className="absolute right-0 top-1/2 transform -translate-y-1/2
-                                                    opacity-0 group-hover:opacity-100 transition-opacity duration-150
-                                                    pointer-events-none group-hover:pointer-events-auto"
-                                                >
-                                                    {mounted && (
-                                                        <TrackMenu
-                                                            song={song}
-                                                            onAddToPlaylist={(s) => {
-                                                                console.log("Add to playlist", s);
-                                                            }}
-                                                            onDelete={handleDelete}
-                                                            onAbout={(s) => {
-                                                                alert(`${s.title} — ${s.artist}\nДлительность: ${formatSeconds(s.duration)}`);
-                                                            }}
-                                                            isAdmin={user?.is_admin === true}
-                                                        />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            {filteredSongs.map((song, index) => (
+                                <TrackItem
+                                    key={song.id}
+                                    song={song}
+                                    playlist={filteredSongs}
+                                    currentIndex={index}
+                                    index={index}
+                                    onDelete={handleDelete}
+                                    hideCover={false}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>

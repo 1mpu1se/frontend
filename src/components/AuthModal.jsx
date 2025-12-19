@@ -39,7 +39,6 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
 
         setLoading(true);
         try {
-            // регистрируем или логинимся — сервер вернёт token
             if (mode === "register") {
                 await authApi.register({
                     username: formData.username,
@@ -62,7 +61,40 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
             onAuth && onAuth(currentUser);
             onClose && onClose();
         } catch (err) {
-            setError(err?.message || "Ошибка авторизации");
+            console.error("Auth error:", err);
+            let errorMessage = err?.message || "Ошибка авторизации";
+
+            if (mode === "register") {
+                if (err?.status === 409 || err?.status === 400) {
+                    errorMessage = "Пользователь с таким именем уже существует";
+                }
+                else if (errorMessage.toLowerCase().includes("already exists") ||
+                    errorMessage.toLowerCase().includes("уже существует") ||
+                    errorMessage.toLowerCase().includes("already registered") ||
+                    errorMessage.toLowerCase().includes("duplicate")) {
+                    errorMessage = "Пользователь с таким именем уже существует";
+                }
+                else if (err?.data?.detail) {
+                    const detail = typeof err.data.detail === 'string'
+                        ? err.data.detail
+                        : JSON.stringify(err.data.detail);
+
+                    if (detail.toLowerCase().includes("already exists") ||
+                        detail.toLowerCase().includes("уже существует") ||
+                        detail.toLowerCase().includes("already registered") ||
+                        detail.toLowerCase().includes("duplicate")) {
+                        errorMessage = "Пользователь с таким именем уже существует";
+                    } else {
+                        errorMessage = detail;
+                    }
+                }
+            } else {
+                if (err?.status === 401 || err?.status === 403) {
+                    errorMessage = "Неверное имя пользователя или пароль";
+                }
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }

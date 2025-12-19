@@ -7,8 +7,8 @@ import { useMusic } from "@/app/MusicContext";
 import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
 
-export default function TrackItem({ song, onDelete, hideCover = false, albumArtist = null, index = 0 }) {
-    const { playingSongId, isPlaying, currentTime, selectOrToggle } = useMusic();
+export default function TrackItem({ song, onDelete, hideCover = false, albumArtist = null, index = 0, playlist = [], currentIndex = 0 }) {
+    const { playingSongId, isPlaying, currentTime, selectOrTogglePlaylist } = useMusic();
     const [mounted, setMounted] = useState(false);
     const { user } = useUser();
 
@@ -26,6 +26,14 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
         return mainName.trim() !== baseAlbumArtist.trim();
     })();
 
+    const handleClick = () => {
+        if (playlist && playlist.length > 0) {
+            selectOrTogglePlaylist(playlist, currentIndex);
+        } else {
+            selectOrTogglePlaylist([song], 0);
+        }
+    };
+
     return (
         <div
             className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition group ${isActive ? "bg-white/20" : ""}`}
@@ -33,7 +41,7 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
             {!hideCover && (
                 <div
                     className="relative w-12 h-12 cursor-pointer flex-shrink-0"
-                    onClick={() => selectOrToggle(song.id)}
+                    onClick={handleClick}
                 >
                     <img
                         src={song.cover}
@@ -65,25 +73,28 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
             {hideCover && (
                 <div className="relative w-10 h-10 flex-shrink-0 flex items-center justify-center">
                     <button
-                        onClick={() => selectOrToggle(song.id)}
+                        onClick={handleClick}
                         className="relative w-10 h-10 flex items-center justify-center rounded-md focus:outline-none"
                     >
+                        {/* Номер трека - скрываем когда играет */}
                         <span className={`text-white text-base md:text-lg font-semibold transition
                             ${isSongPlaying ? "opacity-0" : "opacity-100 group-hover:opacity-0"}`}>
                             {index + 1}
                         </span>
 
+                        {/* Кнопка play/pause - показываем при hover или когда играет */}
                         <img
                             src={isSongPlaying ? "/music/pause.svg" : "/music/play.svg"}
                             alt={isSongPlaying ? "Pause" : "Play"}
                             width={26}
                             height={26}
                             className={`absolute transition-all
-                                ${isSongPlaying ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
+                                ${isSongPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"}
                                 `}
                         />
                     </button>
 
+                    {/* Эквалайзер - показываем только когда играет и нет hover */}
                     {isSongPlaying && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:hidden">
                             <Equalizer />
@@ -94,7 +105,7 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
 
             <div
                 className="flex-1 cursor-pointer min-w-0"
-                onClick={() => selectOrToggle(song.id)}
+                onClick={handleClick}
             >
                 <h3 className="text-white font-medium truncate text-lg">{song.title}</h3>
                 {shouldShowArtist && (
@@ -122,7 +133,7 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
                                 }}
                                 onDelete={onDelete}
                                 onAbout={(s) => {
-                                    alert(`${s.title} – ${s.artist}\nДлительность: ${formatSeconds(s.duration)}`);
+                                    alert(`${s.title} — ${s.artist}\nДлительность: ${formatSeconds(s.duration)}`);
                                 }}
                                 isAdmin={user?.is_admin === true}
                             />

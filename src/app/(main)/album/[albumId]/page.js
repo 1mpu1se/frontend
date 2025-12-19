@@ -20,7 +20,7 @@ export default function AlbumPage() {
     const [songs, setSongs] = useState([]);
     const [error, setError] = useState(null);
 
-    const { playAll } = useMusic();
+    const { selectOrTogglePlaylist } = useMusic();
 
     useEffect(() => {
         loadAlbumData();
@@ -31,19 +31,15 @@ export default function AlbumPage() {
         setError(null);
 
         try {
-            // Загружаем информацию об альбоме
             const albumData = await musicApi.getAlbum(albumId);
             setAlbum(albumData.album);
 
-            // Загружаем песни альбома
             const songsData = await musicApi.getAlbumSongs(albumId);
 
-            // Получаем полный индекс для доступа к информации об артистах
             const index = await musicApi.getIndex();
             const artistsById = {};
             (index?.artists || []).forEach(a => { artistsById[a.artist_id] = a; });
 
-            // Находим артиста альбома
             const albumArtist = artistsById[albumData.album.artist_id];
             setArtist(albumArtist);
 
@@ -81,8 +77,8 @@ export default function AlbumPage() {
     };
 
     const handlePlayAll = () => {
-        if (songs.length > 0 && playAll) {
-            playAll(songs);
+        if (songs.length > 0) {
+            selectOrTogglePlaylist(songs, 0);
         }
     };
 
@@ -136,7 +132,6 @@ export default function AlbumPage() {
                 <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
                     <div className="w-52 h-52 md:w-72 md:h-72 rounded-2xl overflow-hidden bg-white/10 flex-shrink-0 shadow-2xl">
                         {coverUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={coverUrl}
                                 alt={album.name}
@@ -166,7 +161,6 @@ export default function AlbumPage() {
                                 >
                                     <span className="w-8 h-8 rounded-full overflow-hidden bg-white/10 inline-block mr-1 flex-shrink-0">
                                         {artistAvatarUrl ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
                                             <img src={artistAvatarUrl} alt={artist.name} className="w-full h-full object-cover"/>
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-white/30">
@@ -218,10 +212,12 @@ export default function AlbumPage() {
                                     <TrackItem
                                         key={song.id}
                                         song={song}
+                                        playlist={songs}
+                                        currentIndex={index}
+                                        index={index}
                                         onDelete={handleDelete}
                                         hideCover={true}
-                                        albumArtist={song.rawArtistName || (artist?.name || null)}
-                                        index={index}
+                                        albumArtist={song.rawArtistName || artist?.name}
                                     />
                                 ))}
                             </div>
