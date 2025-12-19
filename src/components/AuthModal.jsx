@@ -220,7 +220,7 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 rounded-xl bg-white text-purple-700 font-semibold hover:bg-white/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full mt-4 py-3 rounded-xl bg-white text-purple-700 font-semibold hover:bg-white/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading
                             ? "Загрузка..."

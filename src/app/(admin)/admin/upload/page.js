@@ -13,19 +13,6 @@ function humanFileSize(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(1) + " " + ["B", "KB", "MB", "GB"][i];
 }
 
-async function fetchJsonWithAuth(url, opts = {}) {
-    const token = authApi.getToken();
-    const headers = { ...(opts.headers || {}) };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    const res = await fetch(url, { ...opts, headers });
-    if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || res.statusText);
-    }
-    const text = await res.text();
-    return text ? JSON.parse(text) : {};
-}
-
 export default function UploadPage() {
     const { user, hydrated, refreshUser } = useUser();
     const [forbidden, setForbidden] = useState(false);
@@ -47,7 +34,15 @@ export default function UploadPage() {
     const [creatingSong, setCreatingSong] = useState(false);
     const [error, setError] = useState(null);
     const [successMsg, setSuccessMsg] = useState(null);
+
+    const [albumDropdownOpen, setAlbumDropdownOpen] = useState(false);
+    const [albumSearch, setAlbumSearch] = useState("");
+    const [artistDropdownOpen, setArtistDropdownOpen] = useState(false);
+    const [artistSearch, setArtistSearch] = useState("");
+
     const dropRef = useRef();
+    const albumDropdownRef = useRef(null);
+    const artistDropdownRef = useRef(null);
 
     useEffect(() => {
         if (!hydrated) return;
@@ -85,6 +80,19 @@ export default function UploadPage() {
             if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
         };
     }, [audioPreviewUrl]);
+
+    useEffect(() => {
+        function onOutside(e) {
+            if (albumDropdownRef.current && !albumDropdownRef.current.contains(e.target)) {
+                setAlbumDropdownOpen(false);
+            }
+            if (artistDropdownRef.current && !artistDropdownRef.current.contains(e.target)) {
+                setArtistDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", onOutside);
+        return () => document.removeEventListener("mousedown", onOutside);
+    }, []);
 
     const handleAudioSelect = async (file) => {
         setError(null);
@@ -213,8 +221,7 @@ export default function UploadPage() {
                 asset_id: Number(audioAsset.asset_id),
             };
 
-            const res = await musicApi.adminCreateSong(payload);
-            const song = res?.song ?? res;
+            await musicApi.adminCreateSong(payload);
 
             setSuccessMsg("Трек создан успешно!");
             setAudioFile(null);
@@ -282,6 +289,14 @@ export default function UploadPage() {
             </div>
         );
     }
+
+    const filteredAlbums = albums.filter(a =>
+        a.name?.toLowerCase().includes(albumSearch.trim().toLowerCase())
+    );
+
+    const filteredArtists = artists.filter(a =>
+        a.name?.toLowerCase().includes(artistSearch.trim().toLowerCase())
+    );
 
     return (
         <div
@@ -386,18 +401,49 @@ export default function UploadPage() {
                     <div className="space-y-4">
                         <label className="block text-sm font-medium text-white/90">Альбом</label>
 
-                        <select
-                            value={selectedAlbumId ?? ""}
-                            onChange={(e) => setSelectedAlbumId(e.target.value || null)}
-                            className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white/40 focus:bg-white/15 transition"
-                        >
-                            <option value="" className="bg-[#826d9d]">— Выбрать альбом —</option>
-                            {albums.map((a) => (
-                                <option key={a.album_id ?? a.id} value={a.album_id ?? a.id} className="bg-[#826d9d]">
-                                    {a.name}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative" ref={albumDropdownRef}>
+                            <button
+                                onClick={() => setAlbumDropdownOpen(v => !v)}
+                                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white hover:border-white/40 hover:bg-white/15 transition"
+                            >
+                                <span className="truncate">
+                                    {selectedAlbumId ? (albums.find(a => a.album_id === selectedAlbumId)?.name ?? `ID ${selectedAlbumId}`) : "— Выбрать альбом —"}
+                                </span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" className={`${albumDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+
+                            {albumDropdownOpen && (
+                                <div className="absolute z-50 mt-2 w-full rounded-lg shadow-lg bg-[#6b547f]/95 border border-white/10">
+                                    <div className="p-2">
+                                        <input
+                                            value={albumSearch}
+                                            onChange={(e) => setAlbumSearch(e.target.value)}
+                                            placeholder="Поиск альбома..."
+                                            className="w-full px-3 py-2 rounded-md bg-[#5b486a] text-white placeholder-white/60 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                                        {filteredAlbums.length === 0 ? (
+                                            <div className="px-3 py-2 text-white/60">Ничего не найдено</div>
+                                        ) : (
+                                            filteredAlbums.slice(0, 50).map((a) => (
+                                                <button
+                                                    key={a.album_id ?? a.id}
+                                                    onClick={() => {
+                                                        setSelectedAlbumId(a.album_id ?? a.id);
+                                                        setAlbumDropdownOpen(false);
+                                                        setAlbumSearch("");
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 bg-[#826d9d]/80 hover:bg-[#533f63] transition text-white flex items-center gap-2"
+                                                >
+                                                    <span className="truncate">{a.name}</span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         <button
                             className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
@@ -420,18 +466,49 @@ export default function UploadPage() {
 
                                 <div>
                                     <label className="block text-sm font-medium mb-2 text-white/90">Исполнитель</label>
-                                    <select
-                                        value={newAlbumArtistId ?? ""}
-                                        onChange={(e) => setNewAlbumArtistId(e.target.value || null)}
-                                        className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-white focus:outline-none focus:border-white/40 transition"
-                                    >
-                                        <option value="" className="bg-[#826d9d]">— Выбрать исполнителя —</option>
-                                        {artists.map((ar) => (
-                                            <option key={ar.artist_id ?? ar.id} value={ar.artist_id ?? ar.id} className="bg-[#826d9d]">
-                                                {ar.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="relative" ref={artistDropdownRef}>
+                                        <button
+                                            onClick={() => setArtistDropdownOpen(v => !v)}
+                                            className="w-full flex items-center justify-between gap-3 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white hover:border-white/40 transition"
+                                        >
+                                            <span className="truncate">
+                                                {newAlbumArtistId ? (artists.find(a => a.artist_id === Number(newAlbumArtistId))?.name ?? `ID ${newAlbumArtistId}`) : "— Выбрать исполнителя —"}
+                                            </span>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" className={`${artistDropdownOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </button>
+
+                                        {artistDropdownOpen && (
+                                            <div className="absolute z-50 mt-2 w-full rounded-lg shadow-lg bg-[#6b547f]/95 border border-white/10">
+                                                <div className="p-2">
+                                                    <input
+                                                        value={artistSearch}
+                                                        onChange={(e) => setArtistSearch(e.target.value)}
+                                                        placeholder="Поиск исполнителя..."
+                                                        className="w-full px-3 py-2 rounded-md bg-[#5b486a] text-white placeholder-white/60 focus:outline-none"
+                                                    />
+                                                </div>
+                                                <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                                                    {filteredArtists.length === 0 ? (
+                                                        <div className="px-3 py-2 text-white/60">Ничего не найдено</div>
+                                                    ) : (
+                                                        filteredArtists.slice(0, 50).map((ar) => (
+                                                            <button
+                                                                key={ar.artist_id ?? ar.id}
+                                                                onClick={() => {
+                                                                    setNewAlbumArtistId(ar.artist_id ?? ar.id);
+                                                                    setArtistDropdownOpen(false);
+                                                                    setArtistSearch("");
+                                                                }}
+                                                                className="w-full text-left px-3 py-2 bg-[#826d9d]/80 hover:bg-[#533f63] transition text-white flex items-center gap-2"
+                                                            >
+                                                                <span className="truncate">{ar.name}</span>
+                                                            </button>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div>
