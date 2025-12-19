@@ -10,6 +10,7 @@ import PlayerBar from "@/components/PlayerBar";
 import AuthModal from "@/components/AuthModal";
 import "@/app/globals.css";
 import { UserProvider, useUser } from "@/app/UserContext";
+import Script from "next/script";
 
 function LayoutContent({ children }) {
     const pathname = usePathname();
@@ -284,6 +285,12 @@ function LayoutContent({ children }) {
 export default function RootLayout({ children }) {
     return (
         <html lang="ru">
+            <head>
+                <Script
+                    src="/runtime-env.js"
+                    strategy="beforeInteractive"
+                /><title></title>
+            </head>
             <body>
                 <MusicProvider>
                     <UserProvider>
