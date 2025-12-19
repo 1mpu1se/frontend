@@ -44,17 +44,37 @@ export default function AlbumPage() {
             setArtist(albumArtist);
 
             const coverAssetId = albumData.album.asset_id || (albumArtist?.asset_id);
-            const processedSongs = (songsData.items || []).map(s => ({
-                id: s.song_id,
-                title: s.name,
-                album_id: s.album_id,
-                artist: albumArtist?.name || "Неизвестный",
-                rawArtistName: albumArtist?.name || "Неизвестный",
-                duration: s.duration || 0,
-                cover: coverAssetId ? musicApi.getAudioUrl(coverAssetId) : null,
-                audioUrl: s.asset_id ? musicApi.getAudioUrl(s.asset_id) : null,
-                raw: s,
-            }));
+
+            const processedSongs = await Promise.all(
+                (songsData.items || []).map(s => new Promise(resolve => {
+                    const song = {
+                        id: s.song_id,
+                        title: s.name,
+                        album_id: s.album_id,
+                        artist: albumArtist?.name || "Неизвестный",
+                        rawArtistName: albumArtist?.name || "Неизвестный",
+                        duration: s.duration || 0,
+                        cover: coverAssetId ? musicApi.getAudioUrl(coverAssetId) : null,
+                        audioUrl: s.asset_id ? musicApi.getAudioUrl(s.asset_id) : null,
+                        raw: s,
+                    };
+
+                    // Если duration не указана, пробуем загрузить из аудио
+                    if (!song.duration && song.audioUrl) {
+                        const audio = new Audio();
+                        audio.src = song.audioUrl;
+                        audio.onloadedmetadata = () => {
+                            resolve({ ...song, duration: audio.duration });
+                        };
+                        audio.onerror = () => {
+                            resolve(song);
+                        };
+                        setTimeout(() => resolve(song), 3000);
+                    } else {
+                        resolve(song);
+                    }
+                }))
+            );
 
             setSongs(processedSongs);
         } catch (err) {
@@ -131,6 +151,7 @@ export default function AlbumPage() {
                 <div className="flex flex-col md:flex-row gap-8 md:gap-10 items-start md:items-end">
                     <div className="w-52 h-52 md:w-72 md:h-72 rounded-2xl overflow-hidden bg-white/10 flex-shrink-0 shadow-2xl">
                         {coverUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={coverUrl}
                                 alt={album.name}

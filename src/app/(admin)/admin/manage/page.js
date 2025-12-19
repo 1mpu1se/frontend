@@ -483,14 +483,8 @@ export default function AdminManagePage() {
     const handleSongSave = async () => {
         setError("");
         setSuccess("");
-        if (!songForm.name || songForm.name.trim().length < 1) {
-            setError("Введите название трека");
-            return;
-        }
-        if (!songForm.album_id) {
-            setError("Альбом не выбран");
-            return;
-        }
+        if (!songForm.name || songForm.name.trim().length < 1) { setError("Введите название трека"); return; }
+        if (!songForm.album_id) { setError("Альбом не выбран"); return; }
 
         try {
             let assetId = songForm.asset_id ?? null;
@@ -499,16 +493,12 @@ export default function AdminManagePage() {
                 assetId = asset?.asset_id ?? null;
             }
 
-            const payload = {
-                name: songForm.name,
-                album_id: Number(songForm.album_id),
-                asset_id: assetId ? Number(assetId) : null,
-            };
+            const payload = { name: songForm.name, album_id: Number(songForm.album_id), asset_id: assetId ? Number(assetId) : null };
 
             if (editingSong) {
-                await apiPut(`/admin/songs/${encodeURIComponent(editingSong.song_id)}`, payload);
+                await musicApi.adminUpdateSong(editingSong.song_id, payload);
             } else {
-                await apiPost("/admin/songs", payload);
+                await musicApi.adminCreateSong(payload);
             }
 
             setSongModalOpen(false);
@@ -525,7 +515,7 @@ export default function AdminManagePage() {
     const handleSongDelete = async (song) => {
         if (!confirm(`Удалить трек "${song.name}"?`)) return;
         try {
-            await apiDelete(`/admin/songs/${encodeURIComponent(song.song_id)}`);
+            await musicApi.adminDeleteSong(song.song_id);
             if (selectedAlbumId) await loadTracksForAlbum(selectedAlbumId);
             setSuccess("Трек удалён");
         } catch (e) {

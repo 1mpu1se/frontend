@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import SearchBar from "@/components/SearchBar";
 import ArtistCard from "@/components/ArtistCard";
 import AlbumCard from "@/components/AlbumCard";
 import TrackItem from "@/components/TrackItem";

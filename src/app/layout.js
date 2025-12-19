@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, User, LogOut, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { User, LogOut, Loader2 } from "lucide-react";
+import { useEffect } from "react";
 import { MusicProvider, useMusic } from "@/app/MusicContext";
 import PlayerBar from "@/components/PlayerBar";
 import AuthModal from "@/components/AuthModal";
@@ -11,6 +12,7 @@ import "@/app/globals.css";
 import { UserProvider, useUser } from "@/app/UserContext";
 
 function LayoutContent({ children }) {
+    const pathname = usePathname();
     const { playingSongId, currentSong, isPlaying, togglePlay, selectOrToggle: handlePlayToggle, selectPrev: handlePrev, selectNext: handleNext } = useMusic();
     const playerVisible = playingSongId !== null;
 
@@ -52,7 +54,6 @@ function LayoutContent({ children }) {
         await logout();
     };
 
-    // Показываем загрузчик пока идет гидратация
     if (!hydrated) {
         return (
             <div className="min-h-screen relative overflow-visible bg-purple-300 flex items-center justify-center">
@@ -91,7 +92,6 @@ function LayoutContent({ children }) {
 
     const showAuthPage = checked && !user;
 
-    // Показываем страницу авторизации, если пользователь не авторизован
     if (showAuthPage) {
         return (
             <div className="min-h-screen relative overflow-visible bg-purple-300">
@@ -128,6 +128,13 @@ function LayoutContent({ children }) {
             </div>
         );
     }
+
+    const isActive = (path) => {
+        if (path === '/') {
+            return pathname === '/';
+        }
+        return pathname.startsWith(path);
+    };
 
     return (
         <div className="min-h-screen relative overflow-visible bg-purple-300">
@@ -188,12 +195,48 @@ function LayoutContent({ children }) {
                         </Link>
 
                         <nav className="hidden md:flex gap-4 absolute left-1/2 transform -translate-x-1/2 pointer-events-auto">
-                            <Link href="/" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Главная</Link>
-                            <Link href="/music" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Музыка</Link>
+                            <Link
+                                href="/"
+                                className={`px-4 py-2 rounded-full transition ${
+                                    isActive('/')
+                                        ? 'bg-white/25'
+                                        : 'hover:bg-white/10'
+                                }`}
+                            >
+                                Главная
+                            </Link>
+                            <Link
+                                href="/music"
+                                className={`px-4 py-2 rounded-full transition ${
+                                    isActive('/music')
+                                        ? 'bg-white/25'
+                                        : 'hover:bg-white/10'
+                                }`}
+                            >
+                                Музыка
+                            </Link>
                             {user && user.is_admin && (
                                 <>
-                                    <Link href="/admin/upload" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Загрузка</Link>
-                                    <Link href="/admin/manage" className="px-4 py-2 rounded-full hover:bg-white/10 transition">Админ-панель</Link>
+                                    <Link
+                                        href="/admin/upload"
+                                        className={`px-4 py-2 rounded-full transition ${
+                                            isActive('/admin/upload')
+                                                ? 'bg-white/25'
+                                                : 'hover:bg-white/10'
+                                        }`}
+                                    >
+                                        Загрузка
+                                    </Link>
+                                    <Link
+                                        href="/admin/manage"
+                                        className={`px-4 py-2 rounded-full transition ${
+                                            isActive('/admin/manage')
+                                                ? 'bg-white/25'
+                                                : 'hover:bg-white/10'
+                                        }`}
+                                    >
+                                        Админ-панель
+                                    </Link>
                                 </>
                             )}
                         </nav>

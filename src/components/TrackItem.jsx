@@ -8,7 +8,7 @@ import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
 
 export default function TrackItem({ song, onDelete, hideCover = false, albumArtist = null, index = 0, playlist = [], currentIndex = 0 }) {
-    const { playingSongId, isPlaying, currentTime, selectOrToggle } = useMusic();
+    const { playingSongId, isPlaying, currentTime, selectOrTogglePlaylist } = useMusic();
     const [mounted, setMounted] = useState(false);
     const { user } = useUser();
 
@@ -27,7 +27,7 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
     })();
 
     const handleClick = () => {
-        selectOrToggle(song.id);
+        selectOrTogglePlaylist(playlist, currentIndex);
     };
 
     return (
@@ -72,13 +72,12 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
                         onClick={handleClick}
                         className="relative w-10 h-10 flex items-center justify-center rounded-md focus:outline-none"
                     >
-                        {/* Номер трека - скрываем когда играет */}
                         <span className={`text-white text-base md:text-lg font-semibold transition
                             ${isSongPlaying ? "opacity-0" : "opacity-100 group-hover:opacity-0"}`}>
                             {index + 1}
                         </span>
 
-                        {/* Кнопка play/pause - показываем при hover или когда играет */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={isSongPlaying ? "/music/pause.svg" : "/music/play.svg"}
                             alt={isSongPlaying ? "Pause" : "Play"}
@@ -90,7 +89,6 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
                         />
                     </button>
 
-                    {/* Эквалайзер - показываем только когда играет и нет hover */}
                     {isSongPlaying && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:hidden">
                             <Equalizer />

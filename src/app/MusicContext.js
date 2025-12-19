@@ -15,12 +15,12 @@ export const MusicProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Новые состояния для повторения и перемешивания
+    const [currentPlaylist, setCurrentPlaylist] = useState([]); // Текущий плейлист (альбом или все треки)
+    const [playQueue, setPlayQueue] = useState([]); // Очередь воспроизведения (может быть перемешана)
     const [repeatMode, setRepeatMode] = useState(0); // 0: off, 1: all, 2: one
     const [shuffleMode, setShuffleMode] = useState(false);
-    const [originalPlaylist, setOriginalPlaylist] = useState([]); // Для shuffle
 
-    const currentSong = songs.find(s => s.id === currentSongId) || null;
+    const currentSong = currentPlaylist.find(s => s.id === currentSongId) || null;
     const playingSongId = currentSongId;
     const { checked } = useUser();
 
@@ -100,10 +100,10 @@ export const MusicProvider = ({ children }) => {
                 setIsPlaying(false);
                 setCurrentTime(0);
                 setError(null);
-                setOriginalPlaylist([]);
+                setCurrentPlaylist([]);
+                setPlayQueue([]);
                 setShuffleMode(false);
                 setRepeatMode(0);
-                // Останавливаем воспроизведение при выходе
                 if (audioRef.current) {
                     audioRef.current.pause();
                     audioRef.current.src = '';
@@ -140,11 +140,9 @@ export const MusicProvider = ({ children }) => {
 
         const handleEnded = () => {
             if (repeatMode === 2) {
-                // Repeat one - повторить текущий трек
                 audioRef.current.currentTime = 0;
                 audioRef.current.play();
             } else {
-                // Переход к следующему треку
                 selectNext();
             }
         };
@@ -176,51 +174,88 @@ export const MusicProvider = ({ children }) => {
         setIsPlaying(prev => !prev);
     };
 
+    // Запуск воспроизведения с конкретного плейлиста
+    const selectOrTogglePlaylist = (playlist, index = 0) => {
+        const song = playlist[index];
+        if (!song) return;
+
+        if (currentSongId === song.id && JSON.stringify(currentPlaylist.map(s => s.id)) === JSON.stringify(playlist.map(s => s.id))) {
+            togglePlay();
+            return;
+        }
+
+        setCurrentPlaylist(playlist);
+
+        if (shuffleMode) {
+            const shuffled = [...playlist];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            const songIdx = shuffled.findIndex(s => s.id === song.id);
+            if (songIdx > 0) {
+                [shuffled[0], shuffled[songIdx]] = [shuffled[songIdx], shuffled[0]];
+            }
+            setPlayQueue(shuffled);
+        } else {
+            setPlayQueue(playlist);
+        }
+
+        setCurrentSongId(song.id);
+        setIsPlaying(true);
+    };
+
     const selectOrToggle = (id) => {
         if (currentSongId === id) {
             togglePlay();
-        } else {
+            return;
+        }
+
+        if (currentPlaylist.length === 0) {
+            setCurrentPlaylist(songs);
+            setPlayQueue(songs);
+        }
+
+        const songInPlaylist = currentPlaylist.find(s => s.id === id);
+        if (songInPlaylist) {
             setCurrentSongId(id);
             setIsPlaying(true);
+        } else {
+            selectOrTogglePlaylist(songs, songs.findIndex(s => s.id === id));
         }
     };
 
     const selectNext = () => {
-        if (!songs.length) return;
+        if (playQueue.length === 0) return;
 
-        // Отключаем режим повторения одного трека при ручном переключении
         if (repeatMode === 2) {
             setRepeatMode(0);
         }
 
-        const idx = songs.findIndex(s => s.id === currentSongId);
+        const idx = playQueue.findIndex(s => s.id === currentSongId);
 
         if (repeatMode === 1) {
-            // Repeat all - переход к следующему или к началу
-            const nextIdx = (idx + 1) % songs.length;
-            setCurrentSongId(songs[nextIdx].id);
+            const nextIdx = (idx + 1) % playQueue.length;
+            setCurrentSongId(playQueue[nextIdx].id);
             setIsPlaying(true);
-        } else if (idx < songs.length - 1) {
-            // Обычный режим - переход к следующему если не последний
-            setCurrentSongId(songs[idx + 1].id);
+        } else if (idx < playQueue.length - 1) {
+            setCurrentSongId(playQueue[idx + 1].id);
             setIsPlaying(true);
         } else {
-            // Последний трек и repeat off - остановка
             setIsPlaying(false);
         }
     };
 
     const selectPrev = () => {
-        if (!songs.length) return;
+        if (playQueue.length === 0) return;
 
-        // Отключаем режим повторения одного трека при ручном переключении
         if (repeatMode === 2) {
             setRepeatMode(0);
         }
 
-        const idx = songs.findIndex(s => s.id === currentSongId);
-        const prevIdx = (idx - 1 + songs.length) % songs.length;
-        setCurrentSongId(songs[prevIdx].id);
+        const idx = playQueue.findIndex(s => s.id === currentSongId);
+        const prevIdx = (idx - 1 + playQueue.length) % playQueue.length;
+        setCurrentSongId(playQueue[prevIdx].id);
         setIsPlaying(true);
     };
 
@@ -231,37 +266,24 @@ export const MusicProvider = ({ children }) => {
     const toggleShuffle = () => {
         setShuffleMode(prev => {
             if (!prev) {
-                // Включаем shuffle - перемешиваем текущий плейлист
-                if (songs.length > 0) {
-                    setOriginalPlaylist([...songs]);
-
-                    const currentIdx = songs.findIndex(s => s.id === currentSongId);
-                    const currentSongData = currentIdx >= 0 ? songs[currentIdx] : null;
-
-                    // Создаем перемешанную копию
-                    const shuffled = [...songs];
+                if (currentPlaylist.length > 0) {
+                    const shuffled = [...currentPlaylist];
                     for (let i = shuffled.length - 1; i > 0; i--) {
                         const j = Math.floor(Math.random() * (i + 1));
                         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
                     }
-
-                    // Если есть текущий трек, ставим его первым
-                    if (currentSongData) {
-                        const shuffledIdx = shuffled.findIndex(s => s.id === currentSongData.id);
-                        if (shuffledIdx > 0) {
-                            [shuffled[0], shuffled[shuffledIdx]] = [shuffled[shuffledIdx], shuffled[0]];
+                    if (currentSongId) {
+                        const currentIdx = shuffled.findIndex(s => s.id === currentSongId);
+                        if (currentIdx > 0) {
+                            [shuffled[0], shuffled[currentIdx]] = [shuffled[currentIdx], shuffled[0]];
                         }
                     }
 
-                    setSongs(shuffled);
+                    setPlayQueue(shuffled);
                 }
                 return true;
             } else {
-                // Выключаем shuffle - восстанавливаем оригинальный плейлист
-                if (originalPlaylist.length > 0) {
-                    setSongs([...originalPlaylist]);
-                    setOriginalPlaylist([]);
-                }
+                setPlayQueue([...currentPlaylist]);
                 return false;
             }
         });
@@ -301,12 +323,25 @@ export const MusicProvider = ({ children }) => {
     };
 
     const deleteTrack = async (id) => {
-        await musicApi.deleteTrack(id);
-        setSongs(prev => prev.filter(s => s.id !== id));
-        if (currentSongId === id) {
-            setCurrentSongId(null);
-            setIsPlaying(false);
-            setCurrentTime(0);
+        try {
+            await musicApi.adminDeleteSong(id);
+
+            setSongs(prev => prev.filter(s => s.id !== id));
+            setCurrentPlaylist(prev => prev.filter(s => s.id !== id));
+            setPlayQueue(prev => prev.filter(s => s.id !== id));
+
+            if (currentSongId === id) {
+                setCurrentSongId(null);
+                setIsPlaying(false);
+                setCurrentTime(0);
+                if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.src = '';
+                }
+            }
+        } catch (err) {
+            console.error("deleteTrack failed:", err);
+            throw err;
         }
     };
 
@@ -333,6 +368,7 @@ export const MusicProvider = ({ children }) => {
             shuffleMode,
             togglePlay,
             selectOrToggle,
+            selectOrTogglePlaylist,
             selectNext,
             selectPrev,
             toggleRepeat,

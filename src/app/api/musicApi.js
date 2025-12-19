@@ -194,6 +194,13 @@ export async function adminCreateSong(body) {
     return postJson(`/admin/songs`, body);
 }
 
+export async function adminUpdateSong(songId, body) {
+    return putJson(`/admin/songs/${encodeURIComponent(songId)}`, body);
+}
+
+export async function adminDeleteSong(songId) {
+    return deleteJson(`/admin/songs/${encodeURIComponent(songId)}`);
+}
 
 export async function getArtist(artistId) {
     return getJson(`/user/artist/${artistId}`);
@@ -256,6 +263,8 @@ export const musicApi = {
     adminGetArtists,
     adminCreateUser,
     adminCreateSong,
+    adminUpdateSong,
+    adminDeleteSong,
     adminUpdateUser,
     adminDeleteUser,
     adminCreateArtist,
