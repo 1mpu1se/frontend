@@ -120,16 +120,15 @@ export default function AlbumPage() {
 
     return (
         <div className="max-w-7xl mx-auto pb-12">
-            <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 text-white/70 hover:text-white transition mb-8"
-            >
-                <ArrowLeft size={20} />
-                <span>Назад</span>
-            </button>
+            <div className="rounded-3xl p-6 md:p-10 shadow-2xl bg-gradient-to-br from-[#826d9d]/90 to-[#9b8ab1]/80 backdrop-blur-md mt-20">
+                <button
+                    onClick={() => router.back()}
+                    className="relative z-10 w-10 h-10 mb-5 mt-0 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/70 transition-all hover:scale-110 shadow-xl"
+                >
+                    <ArrowLeft size={24} strokeWidth={2.5} />
+                </button>
 
-            <div className="rounded-3xl p-6 md:p-10 shadow-2xl bg-gradient-to-br from-[#826d9d]/90 to-[#9b8ab1]/80 backdrop-blur-md mb-6">
-                <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
+                <div className="flex flex-col md:flex-row gap-8 md:gap-10 items-start md:items-end">
                     <div className="w-52 h-52 md:w-72 md:h-72 rounded-2xl overflow-hidden bg-white/10 flex-shrink-0 shadow-2xl">
                         {coverUrl ? (
                             <img
@@ -161,6 +160,7 @@ export default function AlbumPage() {
                                 >
                                     <span className="w-8 h-8 rounded-full overflow-hidden bg-white/10 inline-block mr-1 flex-shrink-0">
                                         {artistAvatarUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
                                             <img src={artistAvatarUrl} alt={artist.name} className="w-full h-full object-cover"/>
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-white/30">
@@ -177,7 +177,7 @@ export default function AlbumPage() {
 
                             {artist && <span className="text-purple-300">•</span>}
 
-                            <span>{songs.length} {songs.length === 1 ? 'трек' : 'треков'}</span>
+                            <span>{songs.length} {songs.length === 1 ? 'трек' : songs.length < 5 ? 'трека' : 'треков'}</span>
 
                             {totalDuration > 0 && (
                                 <>

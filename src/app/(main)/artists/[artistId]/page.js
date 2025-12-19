@@ -83,17 +83,14 @@ export default function ArtistPage() {
 
     return (
         <div className="max-w-7xl mx-auto pb-12">
-            {/* Кнопка назад */}
-            <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 text-white/70 hover:text-white transition mb-8"
-            >
-                <ArrowLeft size={20} />
-                <span>Назад</span>
-            </button>
+            <div className="rounded-3xl p-6 md:p-10 shadow-2xl bg-gradient-to-br from-[#826d9d]/90 to-[#9b8ab1]/80 backdrop-blur-md mt-20">
+                <button
+                    onClick={() => router.back()}
+                    className="relative z-10 w-10 h-10 mb-5 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/70 transition-all hover:scale-110 shadow-xl"
+                >
+                    <ArrowLeft size={24} strokeWidth={2.5} />
+                </button>
 
-            {/* Шапка с информацией об артисте */}
-            <div className="rounded-3xl p-8 md:p-12 shadow-2xl bg-gradient-to-br from-[#826d9d]/90 to-[#9b8ab1]/80 backdrop-blur-md mb-12">
                 <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
                     {/* Обложка артиста */}
                     <div className="w-48 h-48 md:w-64 md:h-64 rounded-3xl overflow-hidden bg-white/10 flex-shrink-0 shadow-2xl">
@@ -130,7 +127,7 @@ export default function ArtistPage() {
             {/* Альбомы */}
             {albums.length > 0 ? (
                 <section>
-                    <h2 className="text-3xl font-bold text-white mb-8">
+                    <h2 className="text-3xl font-bold text-white mt-8 mb-8">
                         Альбомы
                         <span className="ml-3 text-purple-200 text-xl font-normal">
                             {albums.length}

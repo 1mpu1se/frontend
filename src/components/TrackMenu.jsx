@@ -45,10 +45,6 @@ export default function TrackMenu({ song, onAddToPlaylist, onDelete, onAbout, is
                 }}
             >
                 {isAdmin && (
-                    <Divider sx={{ borderColor: "#afa1c1", width: 170, mx: "auto", my: 0.1 }} />
-                )}
-
-                {isAdmin && (
                     <MenuItem onClick={handleDelete}>
                         <ListItemIcon sx={{ minWidth: 36 }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}

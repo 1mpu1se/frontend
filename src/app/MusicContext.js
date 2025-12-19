@@ -185,39 +185,6 @@ export const MusicProvider = ({ children }) => {
         }
     };
 
-    const selectOrTogglePlaylist = (playlist, idx) => {
-        const selectedSong = playlist[idx];
-
-        if (shuffleMode) {
-            // Сохраняем оригинальный плейлист
-            setOriginalPlaylist([...playlist]);
-
-            // Создаем перемешанную копию
-            const shuffled = [...playlist];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-
-            // Убедимся что выбранный трек первый
-            const selectedIdx = shuffled.findIndex(s => s.id === selectedSong.id);
-            if (selectedIdx > 0) {
-                [shuffled[0], shuffled[selectedIdx]] = [shuffled[selectedIdx], shuffled[0]];
-            }
-
-            setSongs(shuffled);
-            setCurrentSongId(selectedSong.id);
-        } else {
-            // Обычный режим - очищаем originalPlaylist если он был
-            if (originalPlaylist.length > 0) {
-                setOriginalPlaylist([]);
-            }
-            setSongs([...playlist]);
-            setCurrentSongId(selectedSong.id);
-        }
-        setIsPlaying(true);
-    };
-
     const selectNext = () => {
         if (!songs.length) return;
 
@@ -366,7 +333,6 @@ export const MusicProvider = ({ children }) => {
             shuffleMode,
             togglePlay,
             selectOrToggle,
-            selectOrTogglePlaylist,
             selectNext,
             selectPrev,
             toggleRepeat,

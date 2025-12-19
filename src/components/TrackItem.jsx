@@ -8,7 +8,7 @@ import { formatSeconds } from '@/app/utils/time';
 import { useUser } from "@/app/UserContext";
 
 export default function TrackItem({ song, onDelete, hideCover = false, albumArtist = null, index = 0, playlist = [], currentIndex = 0 }) {
-    const { playingSongId, isPlaying, currentTime, selectOrTogglePlaylist } = useMusic();
+    const { playingSongId, isPlaying, currentTime, selectOrToggle } = useMusic();
     const [mounted, setMounted] = useState(false);
     const { user } = useUser();
 
@@ -27,11 +27,7 @@ export default function TrackItem({ song, onDelete, hideCover = false, albumArti
     })();
 
     const handleClick = () => {
-        if (playlist && playlist.length > 0) {
-            selectOrTogglePlaylist(playlist, currentIndex);
-        } else {
-            selectOrTogglePlaylist([song], 0);
-        }
+        selectOrToggle(song.id);
     };
 
     return (
